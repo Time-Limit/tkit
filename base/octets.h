@@ -10,7 +10,7 @@ public:
 	{
 		OCTETS_INIT_CAP = 32;
 	};
-public:
+	
 	Octets();
 	Octets(const Octets &rhs);
 
@@ -19,10 +19,8 @@ public:
 	const char * data();
 	size_t size();
 
-	void Append(const char * d, size_t s);
-
 	~Octets();
-
+private:
 	struct Rep
 	{
 		size_t cap;
@@ -51,8 +49,47 @@ public:
 		{
 			return reinterpret_cast<void *>(this+1);
 		}
+
+		void retain()
+		{
+			__asm__ __volatile__ (
+				"lock; add $1, %0 \n"	
+			);
+		}
+
+		void release()
+		{
+			size_t old;
+			__asm__ __volatile__ (
+				"lock; xadd %2, %0 \n"
+				: "=m"(ref), "=r"(old)
+				: "1"(-1) : "memory"
+			);
+
+			if( old == 1 ) delete this;
+		}
+
+		void * clone()
+		{
+			Rep *rep = create(cap);
+			memecpy(req->data(), data(), req->len = len);
+			return req->data();
+		}
+
+		void * unique()
+		{
+			if(ref > 1)
+			{
+				void * r = clone();
+				release();
+				return r;
+			}
+			return data();
+		}
 	};
-private:
+
+	void *base;
+	Rep *rep() const { return reinterpret_cast<Rep *>(base) - 1; }
 };
 
 #endif

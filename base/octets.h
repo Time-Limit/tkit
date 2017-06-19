@@ -37,12 +37,13 @@ private:
 			free(p);
 		}
 
-		static Req* create(size_t cap)
+		static Rep* create(size_t cap)
 		{
-			Rep *rep = new (cap) Req;
-			req->cap = cap;
-			req->len = 0;
-			req->ref = 1;
+			Rep *rep = new (cap) Rep;
+			rep->cap = cap;
+			rep->len = 0;
+			rep->ref = 1;
+			return rep;
 		}
 
 		void * data()
@@ -54,6 +55,7 @@ private:
 		{
 			__asm__ __volatile__ (
 				"lock; add $1, %0 \n"	
+				: "=m"(ref)
 			);
 		}
 
@@ -76,17 +78,9 @@ private:
 			return req->data();
 		}
 
-		void * unique()
-		{
-			if(ref > 1)
-			{
-				void * r = clone();
-				release();
-				return r;
-			}
-			return data();
-		}
 	};
+
+	static Req null;
 
 	void *base;
 	Rep *rep() const { return reinterpret_cast<Rep *>(base) - 1; }

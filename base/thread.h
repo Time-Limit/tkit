@@ -54,6 +54,13 @@ public:
 	typedef std::queue<Task *> Queue;
 
 	bool AddTask(Task *task);
+	
+	static ThreadPool& GetInstance()
+	{
+		static ThreadPool instance;
+		return instance;
+	}
+
 private:
 
 	Pool pool;

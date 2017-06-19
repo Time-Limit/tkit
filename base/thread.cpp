@@ -1,4 +1,5 @@
 #include "thread.h"
+#include "log.h"
 
 void * Thread::Run(void * args)
 {
@@ -34,10 +35,6 @@ TPTask::~TPTask()
 
 void TPTask::Exec()
 {
-	assert(pool && "thread pool * is null");
-
-	printf("thread 0x%x is running.\n", pthread_self());
-	
 	for(;;)
 	{
 		pthread_mutex_lock(&pool->lock);
@@ -45,7 +42,7 @@ void TPTask::Exec()
 		if(pool->quit && pool->tasks.empty())
 		{
 			pthread_mutex_unlock(&pool->lock);
-			printf("thread 0x%x will quit.\n", pthread_self());
+			Log::Trace("thread 0x%x will quit.\n", pthread_self());
 			pthread_exit(NULL) ;
 		}
 
@@ -59,7 +56,6 @@ void TPTask::Exec()
 		if(task)
 		{
 			task->Exec();
-			delete task;
 		}
 	}
 }

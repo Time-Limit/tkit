@@ -12,14 +12,15 @@
 #include <netinet/in.h>
 #include <assert.h>
 #include "task.h"
+#include "octets.h"
 
-class Channel
+class EventHandler
 {
 public:
 	virtual void Handle(const struct epoll_event &event) = 0;
 };
 
-class Acceptor : public Channel
+class Acceptor : public EventHandler
 {
 public:
 	virtual void Handle(const struct epoll_event &event);
@@ -30,10 +31,23 @@ private:
 	int fd;
 };
 
-class NeterTask : public Task
+class Connector : public EventHandler
 {
 public:
-	virtual void Exec();
+	virtual void Handle(const struct epoll_event &event);
+
+	Connector(int f) : fd(f) {};
+	
+	enum
+	{
+		BUF_SIZE = 1024,
+	};
+
+private:
+	Octets data_in;
+	char buf[BUF_SIZE];
+	int part;
+	int fd;
 };
 
 class Neter

@@ -1,4 +1,4 @@
-objs = neter.o task.o thread.o start.o log.o
+objs = neter.o task.o thread.o start.o log.o octets.o netertask.o
 
 all: $(objs)
 	g++ -o core $(objs) -std=c++11 -lpthread -g

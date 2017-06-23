@@ -2,6 +2,8 @@
 #include "log.h"
 #include "task.h"
 #include "thread.h"
+#include "lock.h"
+#include "netertask.h"
 
 Neter& Neter::GetInstance()
 {
@@ -53,7 +55,7 @@ void Neter::Wait(time_t timeout)
 		{
 			if(begin->data.ptr)
 			{
-				((Channel *)(begin->data.ptr))->Handle(*begin);
+				((EventHandler *)(begin->data.ptr))->Handle(*begin);
 			}
 		}
 	}
@@ -62,6 +64,9 @@ void Neter::Wait(time_t timeout)
 bool Neter::Listen(unsigned int port)
 {
 	int sockfd = 0;
+	int optval = -1;
+	struct sockaddr_in server;
+	socklen_t socklen = sizeof(struct sockaddr_in);
 
 	sockfd = socket(PF_INET, SOCK_STREAM, 0);
 
@@ -71,9 +76,7 @@ bool Neter::Listen(unsigned int port)
 		return false;
 	}
 
-	struct sockaddr_in server;
-
-	socklen_t socklen = sizeof(struct sockaddr_in);
+	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 	memset(&server, 0, socklen);
 	
 	server.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -112,12 +115,24 @@ void Acceptor::Handle(const struct epoll_event &event)
 	struct epoll_event ev;
 	memset(&ev, 0, sizeof(ev));
 	ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
+	ev.data.ptr = new Connector(connect_fd);
 	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, connect_fd, &ev);
 	Log::Trace("Acceptor::Handle, add new socket, fd=%d\n", connect_fd);
 }
 
-void NeterTask::Exec()
+void Connector::Handle(const struct epoll_event &event)
 {
-	Neter::GetInstance().Wait(1000);
-	ThreadPool::GetInstance().AddTask(this);
+	if(event.events | EPOLLIN)
+	{
+		while((part = read(fd, buf, BUF_SIZE)) > 0)
+		{
+			data_in.insert(data_in.end(), buf, part);
+		}
+		
+		if(data_in.size())
+		{
+			ThreadPool::GetInstance().AddTask(new HttpTask(data_in));
+			data_in.clear();
+		}
+	}
 }

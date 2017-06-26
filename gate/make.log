@@ -1,0 +1,84 @@
+g++ -c gatetask.cpp -o gatetask.o -I../core/base -I../inl -I. -std=c++11 -lpthread -g
+In file included from gatetask.cpp:3:0:
+gatetask.h:132:25: error: cannot declare variable 'HttpReqeustParser::begin_rule' to be of abstract type 'HttpReqeustParser::BeginRule'
+  static const BeginRule begin_rule;
+                         ^
+gatetask.h:52:8: note:   because the following virtual functions are pure within 'HttpReqeustParser::BeginRule':
+  class BeginRule : public Rule
+        ^
+In file included from gatetask.h:7:0,
+                 from gatetask.cpp:3:
+../core/base/parser.h:4:23: note: 	virtual const Rule* Rule::Trans(char* const&, char*, int) const
+  virtual Rule const * Trans(char * const &cur, char * const end, int param) const = 0;
+                       ^
+In file included from gatetask.cpp:3:0:
+gatetask.h:135:26: error: redeclaration of 'const HttpReqeustParser::MethodRule HttpReqeustParser::method_rule'
+  static const MethodRule method_rule;
+                          ^
+gatetask.h:133:26: note: previous declaration 'const HttpReqeustParser::MethodRule HttpReqeustParser::method_rule'
+  static const MethodRule method_rule;
+                          ^
+gatetask.h:140:28: error: cannot declare variable 'HttpReqeustParser::rollback_rule' to be of abstract type 'HttpReqeustParser::RollbackRule'
+  static const RollbackRule rollback_rule;
+                            ^
+gatetask.h:116:8: note:   because the following virtual functions are pure within 'HttpReqeustParser::RollbackRule':
+  class RollbackRule : public Rule
+        ^
+In file included from gatetask.h:7:0,
+                 from gatetask.cpp:3:
+../core/base/parser.h:4:23: note: 	virtual const Rule* Rule::Trans(char* const&, char*, int) const
+  virtual Rule const * Trans(char * const &cur, char * const end, int param) const = 0;
+                       ^
+In file included from gatetask.cpp:3:0:
+gatetask.h:141:27: error: cannot declare variable 'HttpReqeustParser::invalid_rule' to be of abstract type 'HttpReqeustParser::InvalidRule'
+  static const InvalidRule invalid_rule;
+                           ^
+gatetask.h:124:8: note:   because the following virtual functions are pure within 'HttpReqeustParser::InvalidRule':
+  class InvalidRule : public Rule
+        ^
+In file included from gatetask.h:7:0,
+                 from gatetask.cpp:3:
+../core/base/parser.h:4:23: note: 	virtual const Rule* Rule::Trans(char* const&, char*, int) const
+  virtual Rule const * Trans(char * const &cur, char * const end, int param) const = 0;
+                       ^
+gatetask.cpp:33:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::BeginRule begin_rule;
+ ^
+gatetask.cpp:34:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::MethodRule method_rule;
+ ^
+gatetask.cpp:35:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::UrlRule url_rule;
+ ^
+gatetask.cpp:36:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::MethodRule method_rule;
+ ^
+gatetask.cpp:37:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::HeaderKeyRule headerkey_rule;
+ ^
+gatetask.cpp:38:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::HeaderValueRule headervalue_rule;
+ ^
+gatetask.cpp:39:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::BodyRule body_rule;
+ ^
+gatetask.cpp:40:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::EndRule end_rule;
+ ^
+gatetask.cpp:41:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::RollbackRule rollback_rule;
+ ^
+gatetask.cpp:42:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::InvalidRule invalid_rule;
+ ^
+gatetask.cpp:44:1: error: 'HttpRequestParser' does not name a type
+ HttpRequestParser::HttpRequestParser()
+ ^
+gatetask.cpp: In member function 'virtual bool HttpReqeustParser::Parse(char*, char*) const':
+gatetask.cpp:50:18: error: declaration of 'size_t end' shadows a parameter
+  size_t cur = 0, end = size;
+                  ^
+gatetask.cpp:50:24: error: 'size' was not declared in this scope
+  size_t cur = 0, end = size;
+                        ^
+make: *** [gatetask.o] Error 1

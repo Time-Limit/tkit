@@ -63,9 +63,24 @@ public:
 
 	Mutex data_in_lock;
 
+	class Queue
+	{
+	private:
+		char * buf;
+		size_t head, tail;
+	public:
+		Queue() : head(0), tail(0)
+		{
+			buf = (char *)malloc(BUF_SIZE);
+		}
+		~Queue()
+		{
+			free(buf);
+		}
+	};
+
 private:
 	Octets data_in;
-	char buf[BUF_SIZE];
 	int part;
 	int fd;
 	const Acceptor &acceptor;

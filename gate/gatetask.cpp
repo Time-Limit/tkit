@@ -49,7 +49,6 @@ bool HttpRequestParser::Parse(char * const begin, char * const end) const
 {
 }
 
-
 Rule const * HttpRequestParser::MethodRule::Trans(char ** const cur, char * const end, Parser * parser) const
 {
 	char *ptr = *cur;

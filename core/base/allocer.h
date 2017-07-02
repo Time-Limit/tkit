@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
+#include "lock.h"
 
 template<size_t SIZE>
 class Allocer
@@ -31,18 +32,18 @@ public:
 
 	void * Alloc()
 	{
+		SpinLockGuard guarder(lock);
 		if(header)
 		{
 			void * res = header;
 			header = (void *)*(ptrdiff_t *)header;
-			puts("here");
 			return res;
 		}
-		puts("fuck");
 		return malloc(SIZE);
 	}
 	void Free(void * ptr)
 	{
+		SpinLockGuard guarder(lock);
 		if(ptr)
 		{
 			*(ptrdiff_t *)ptr = (ptrdiff_t)header;
@@ -53,6 +54,7 @@ public:
 	size_t Size() { return SIZE; }
 private:
 	void *header;
+	SpinLock lock;
 };
 
 #endif

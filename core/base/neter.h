@@ -13,7 +13,7 @@
 #include <assert.h>
 #include "task.h"
 #include "octets.h"
-#include "lock.h"
+#include "allocer.h"
 
 class EventHandler
 {
@@ -40,6 +40,13 @@ public:
 		return task;
 	}
 
+	enum POLL_CONFIG
+	{
+		READ_BUF_SIZE = 256,
+	};
+
+	Allocer<READ_BUF_SIZE> read_buf_allocer;
+
 private:
 	int fd;
 
@@ -55,44 +62,23 @@ public:
 	: fd(f)
 	, acceptor(*a)
 	{};
-	
-	enum
-	{
-		BUF_SIZE = 1024,
-	};
 
-	Mutex data_in_lock;
-
-	class Queue
-	{
-	private:
-		char * buf;
-		size_t head, tail;
-	public:
-		Queue() : head(0), tail(0)
-		{
-			buf = (char *)malloc(BUF_SIZE);
-		}
-		~Queue()
-		{
-			free(buf);
-		}
-	};
+	Octets &GetDataIn() { return data_in; }
 
 private:
-	Octets data_in;
-	int part;
 	int fd;
-	const Acceptor &acceptor;
+	Acceptor &acceptor;
+	Mutex data_in_lock;
+	Octets data_in;
 };
 
 class Neter
 {
 public:
 
-	enum POLL_CONFIG
+	enum NETER_CONFIG
 	{
-		POLL_MAX_SIZE = 4096,
+		POLL_MAX_SIZE = 1024,
 	};
 
 	Neter();
@@ -105,7 +91,7 @@ public:
 	bool Ctl(int op, int fd, struct epoll_event *event);
 
 	bool Listen(unsigned int port, TaskCreator * creator);
-
+	
 private:
 	int epoll_fd;
 

@@ -17,7 +17,7 @@ public:
 	{
 		connector = c;
 	}
-private:
+protected:
 	Connector * connector;
 };
 

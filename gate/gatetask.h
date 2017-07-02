@@ -12,7 +12,7 @@ public:
 	virtual void Exec();
 };
 
-class HttpTask : public Task
+class HttpTask : public NetTask
 {
 public:
 	HttpTask();
@@ -91,12 +91,6 @@ public:
 		virtual Rule const * Trans(char ** const cur, char * const end, Parser * parser) const;
 	};
 
-	class RollbackRule : public Rule
-	{
-	public:
-		virtual Rule const * Trans(char ** const cur, char * const end, Parser * parser) const;
-	};
-
 	class InvalidRule : public Rule
 	{
 	public:
@@ -110,8 +104,8 @@ public:
 	static const HeaderValueRule headervalue_rule;
 	static const BodyRule body_rule;
 	static const EndRule end_rule;
-	static const RollbackRule rollback_rule;
 	static const InvalidRule invalid_rule;
+
 private:
 	std::string method;
 	std::string url;

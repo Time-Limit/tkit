@@ -12,9 +12,9 @@ void * Thread::Run(void * args)
 Thread::Thread(Task *task)
 {
 	int res = pthread_create(&tid, NULL, Thread::Run, (void *)task);
-	if(!res)
+	if(res)
 	{
-		perror(strerror(errno));
+		Log::Trace("Thread::Thread, error=%s", strerror(errno));
 	}
 }
 

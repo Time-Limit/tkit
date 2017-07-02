@@ -123,17 +123,25 @@ void Connector::Handle(const struct epoll_event &event)
 {
 	if(event.events | EPOLLIN)
 	{
-		int sum = 0;
-		MutexGuard guard(data_in_lock);
-		while((part = read(fd, buf, BUF_SIZE)) > 0)
+		void * buf = acceptor.read_buf_allocer.Alloc();	
+		if(buf)
 		{
-			sum += part;
-			data_in.insert(data_in.end(), buf, part);
-		}
-		
-		if(sum)
-		{
+			{
+				MutexGuard guarder(data_in_lock);
+				int sum = 0;
+				do
+				{
+					sum = read(fd, buf, Acceptor::READ_BUF_SIZE);
+					if(sum > 0)
+					{
+						data_in.insert(data_in.end(), buf, sum);
+					}
+				}while(sum == Acceptor::READ_BUF_SIZE);
+			}
+
 			ThreadPool::GetInstance().AddTask(acceptor.Create(this));
+
+			acceptor.read_buf_allocer.Free(buf);
 		}
 	}
 }

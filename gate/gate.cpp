@@ -8,7 +8,7 @@ class HttpTaskCreator : public TaskCreator
 public:
 	Task * Create() const
 	{
-		return new HttpTask();
+		return (Task *) new HttpTask();
 	}
 };
 

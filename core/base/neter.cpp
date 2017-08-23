@@ -4,6 +4,7 @@
 #include "thread.h"
 #include "lock.h"
 #include "channel.h"
+#include "signal.h"
 
 Neter& Neter::GetInstance()
 {
@@ -13,6 +14,7 @@ Neter& Neter::GetInstance()
 
 Neter::Neter()
 {
+	signal(SIGPIPE, SIG_IGN);
 	epoll_fd = epoll_create(1);
 	if(epoll_fd == -1)
 	{

@@ -33,7 +33,7 @@ public:
 
 	~Channel()
 	{
-		Log::Trace("Channel::~Channel, fd=%d, val=0x%x\n", fd, this);
+		Log::Trace("Channel::~Channel, cid=%d, fd=%d, val=0x%x\n", cid, fd, this);
 		if(close(fd))
 		{
 			Log::Error("Channel::~Channel, close failed, %d(%s)\n", errno, strerror(errno));

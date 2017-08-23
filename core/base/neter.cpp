@@ -54,8 +54,6 @@ void Neter::Wait(time_t timeout)
 		return ;
 	}
 
-	Log::Trace("Neter::Wait, result = %d\n", result);
-
 	struct epoll_event *begin = events, *end = events + result;
 
 	for(; begin < end; ++begin)

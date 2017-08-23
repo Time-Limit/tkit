@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <signal.h>
 #include "task.h"
 
 class ThreadPool;

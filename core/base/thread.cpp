@@ -11,6 +11,7 @@ void * Thread::Run(void * args)
 
 Thread::Thread(Task *task)
 {
+	signal(SIGPIPE, SIG_IGN);
 	int res = pthread_create(&tid, NULL, Thread::Run, (void *)task);
 	if(res)
 	{

@@ -52,7 +52,7 @@ void TPTask::Exec()
 		}
 		Task *task = pool->GetTaskWithoutLock();
 		pthread_mutex_unlock(&pool->lock);
-
+		//printf("thread = 0x%x, task = 0x%x\n", pthread_self(), task);
 		if(task)
 		{
 			task->Exec();
@@ -106,15 +106,17 @@ Task *ThreadPool::GetTaskWithoutLock()
 bool ThreadPool::AddTask(Task *task)
 {
 	if(!task) {return false;}
+	
+	bool need_notify = false;
 
 	pthread_mutex_lock(&lock);
 
 	if(quit) {return false;}
+	if(!tasks.size()) need_notify = true;
 	tasks.push(task);
 
 	pthread_mutex_unlock(&lock);
-
-	pthread_cond_signal(&cond);
+	if(need_notify) pthread_cond_signal(&cond);
 
 	return true;
 }

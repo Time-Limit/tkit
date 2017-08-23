@@ -15,72 +15,13 @@
 #include "octets.h"
 #include "allocer.h"
 
-class EventHandler
-{
-public:
-	virtual void Handle(const struct epoll_event &event) = 0;
-};
-
-class Connector;
-
-class Acceptor : public EventHandler
-{
-public:
-	virtual void Handle(const struct epoll_event &event);
-	
-	Acceptor(int f, TaskCreator * c)
-	: fd(f)
-	, creator(c)
-	{};
-public:
-	Task * Create(Connector * c) const
-	{
-		Task * task = creator->Create();
-		((NetTask *)task)->SetConnector(c);
-		return task;
-	}
-
-	enum POLL_CONFIG
-	{
-		READ_BUF_SIZE = 256,
-	};
-
-	Allocer<READ_BUF_SIZE> read_buf_allocer;
-
-private:
-	int fd;
-
-	TaskCreator * creator;
-};
-
-class Connector : public EventHandler
-{
-public:
-	virtual void Handle(const struct epoll_event &event);
-
-	Connector(int f, Acceptor * a)
-	: fd(f)
-	, acceptor(*a)
-	{};
-
-	Octets &GetDataIn() { return data_in; }
-
-private:
-	int fd;
-	Acceptor &acceptor;
-	Mutex data_in_lock;
-	Octets data_in;
-};
-
 class Neter
 {
-public:
-
-	enum NETER_CONFIG
+	enum
 	{
-		POLL_MAX_SIZE = 1024,
+		EPOLL_EVENT_SIZE = 1024,
 	};
-
+public:
 	Neter();
 	~Neter();
 
@@ -90,12 +31,10 @@ public:
 
 	bool Ctl(int op, int fd, struct epoll_event *event);
 
-	bool Listen(unsigned int port, TaskCreator * creator);
-	
 private:
 	int epoll_fd;
 
-	struct epoll_event events[POLL_MAX_SIZE];
+	struct epoll_event events[EPOLL_EVENT_SIZE];
 };
 
 #endif

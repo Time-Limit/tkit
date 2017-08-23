@@ -1,6 +1,7 @@
 
-core_objs = ../core/base/neter.o ../core/base/thread.o ../core/base/log.o ../core/base/octets.o
-gate_objs = gatetask.o gate.o
+core_objs = ../core/base/neter.o ../core/base/thread.o ../core/base/log.o ../core/base/octets.o ../core/base/channel.o \
+	    ../core/base/parser.o
+gate_objs = gate.o gatetask.o
 
 objs = $(core_objs) $(gate_objs)
 

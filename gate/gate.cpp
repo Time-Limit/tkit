@@ -1,24 +1,15 @@
 #include "thread.h"
-#include "task.h"
-#include "neter.h"
 #include "gatetask.h"
-
-class HttpTaskCreator : public TaskCreator
-{
-public:
-	Task * Create() const
-	{
-		return (Task *) new HttpTask();
-	}
-};
+#include "neter.h"
+#include "channel.h"
 
 int main()
 {
-	Neter::GetInstance().Listen(9090, new HttpTaskCreator());
-	ThreadPool::GetInstance().AddTask(new GateTask());
-	while(1)
+	assert(Acceptor::Listen(9090, HttpParser::Hatcher));
+	Thread * gate_task_thread = new Thread(new GateTask());
+	while(true)
 	{
-		sleep(100);
+		;
 	}
 	return 0;
 }

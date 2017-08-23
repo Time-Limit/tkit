@@ -2,7 +2,7 @@
 #define _CHANNLE_H_
 
 
-#include <set>
+#include <map>
 #include <vector>
 #include <stdio.h>
 #include <unistd.h>
@@ -18,6 +18,8 @@
 #include "lock.h"
 #include "exptype.h"
 #include "log.h"
+#include <functional>
+#include "parser.h"
 
 class ChannelManager;
 
@@ -27,10 +29,7 @@ public:
 
 	friend ChannelManager;
 
-	Channel(int f) : fd(f), ready_send(false)
-	{
-		fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
-	}
+	Channel(int f);
 
 	~Channel()
 	{
@@ -45,7 +44,9 @@ public:
 	void PutData(const char * buf, size_t size);
 
 	void Handle(const epoll_event *event);
+	void SetParser(Parser *p) { parser = p; };
 
+	channel_id_t GetCid() const { return cid; }
 private:
 	Mutex olock;
 	Octets ibuff, obuff;
@@ -60,22 +61,29 @@ private:
 	virtual void Send();
 	virtual void Recv();
 	virtual void OnRecv();
+
 protected:
 	int fd;
+	channel_id_t cid;
+	Parser * parser;
 };
 
 class Acceptor : Channel
 {
 public:
-	Acceptor(int f)
-	: Channel(f)
+	Acceptor(int f, ParserHatcher h)
+	: hatcher(h)
+	, Channel(f)
 	{};
 
-	static bool Listen(int port);
+	static bool Listen(int port, ParserHatcher hatcher);
 
 private:
-	void Recv();
-	void OnRecv() {};
+
+	void Recv() {};
+	void OnRecv();
+
+	ParserHatcher hatcher;
 };
 
 /*
@@ -88,10 +96,10 @@ class Connect() : Channel
 class ChannelManager
 {
 private:
-	typedef std::set<Channel *> ChannelSet;
+	typedef std::map<channel_id_t, Channel *> ChannelMap;
 	
 	Mutex lock;
-	ChannelSet channel_set;
+	ChannelMap channel_map;
 
 	typedef std::vector<Channel *> ChannelVector;
 	ChannelVector ready_close_vector;
@@ -101,7 +109,15 @@ public:
 	void Add(Channel * c);
 	void ReadyClose(Channel * c);
 	void Close();
-
+	
+	static channel_id_t AllocID()
+	{
+		static channel_id_t cid = 0;
+		static SpinLock cid_lock;
+		
+		SpinLockGuard guarder(cid_lock);
+		return cid++;
+	}
 	static ChannelManager &GetInstance() { static ChannelManager channel_manager; return channel_manager; }
 };
 

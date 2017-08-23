@@ -201,7 +201,7 @@ void ChannelManager::Close()
 	for(; it != ie; ++it)
 	{
 		static epoll_event event;
-		Neter::GetInstance().Ctl(EPOLL_CTL_MOD, (*it)->fd, &event);
+		Neter::GetInstance().Ctl(EPOLL_CTL_DEL, (*it)->fd, &event);
 		delete *it;
 	}
 

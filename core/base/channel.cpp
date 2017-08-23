@@ -80,7 +80,7 @@ void Channel::Recv()
 void Channel::OnRecv()
 {
 	parser->Append(ibuff);
-	obuff.clear();
+	ibuff.clear();
 	parser->Parse();
 }
 

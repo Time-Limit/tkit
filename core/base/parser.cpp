@@ -2,18 +2,51 @@
 #include "task.h"
 #include "channel.h"
 #include "thread.h"
+#include <sstream>
 
 class ResponseTask : public Task
 {
 	channel_id_t cid;
+	HttpParser::Request request;
 public:
-	ResponseTask(channel_id_t c)
+	ResponseTask(channel_id_t c, const HttpParser::Request &req)
 	: cid(c)
+	, request(req)
 	{}
 	void Exec()
 	{
 		static const char * content = "HTTP/1.1 200 SUCCESS\r\nContent-Length:3\r\n\r\nzmx";
-		ChannelManager::GetInstance().PutData(cid, content, strlen(content));
+		std::stringstream stream;
+		stream << "url = " << request.url << "\n";
+		stream << "method = " << request.method << "\n";
+		stream << "version = " << request.version << "\n";
+		stream << "headers  = " << request.headers.size() << "\n";
+
+		std::map<std::string, std::string>::iterator it = request.headers.begin();
+		std::map<std::string, std::string>::iterator ie = request.headers.end();
+
+		for(; it != ie; ++it)
+		{
+			stream << "header->"<<it->first<<" = "<< it->second << "\n";
+		}
+
+		stream << "body = " << request.body << "\n";
+
+		it = request.args.begin();
+		ie = request.args.end();
+		
+		stream << "args = " << request.args.size() << "\n";
+
+		for(; it != ie; ++it)
+		{
+			stream << "arg->" << it->first << " = " << it->second << "\n";
+		}
+		
+		std::stringstream response;
+
+		response << "HTTP/1.1 200 SUCCESS\r\nContent-Length:" << stream.str().size()<<"\r\n\r\n" << stream.str();
+
+		ChannelManager::GetInstance().PutData(cid, response.str().c_str(), response.str().size());
 	}
 };
 
@@ -24,9 +57,6 @@ void Parser::Append(const Octets &fresh_data)
 
 void HttpParser::Parse()
 {
-	//printf("%.*s\n", data.size(), data.begin());
-	//ThreadPool::GetInstance().AddTask(new ResponseTask(cid));
-	
 	enum PARSE_STATE
 	{
 		PARSE_LINE = 0,
@@ -37,7 +67,7 @@ void HttpParser::Parse()
 	
 #define parse_state_t unsigned char 
 	
-	const char *begin = (const char *)data.begin() , *end = (const char *)data.end();
+	const char *begin = (const char *)data.begin() , *end = (const char *)data.end(), *tmp = NULL;
 	
 	Request req;
 
@@ -48,7 +78,7 @@ void HttpParser::Parse()
 			case PARSE_LINE:
 			{
 				if(begin >= end) return ;
-				const char * tmp = begin;
+				tmp = begin;
 
 				for(; begin < end && (*begin != ' '); ++begin);
 				if(begin == end) return ;
@@ -73,12 +103,10 @@ void HttpParser::Parse()
 			case PARSE_HEADER:
 			{
 				if(begin >= end) return ;
-				const char * tmp = NULL;
 				
 				std::string key, value;
 				while(begin < end)
 				{
-					tmp = begin;
 					for(tmp = begin; begin < end && (*begin != ':'); ++begin);
 					if(begin == end) return ;
 					key = std::string(tmp, begin-tmp);
@@ -143,9 +171,49 @@ void HttpParser::Parse()
 
 	data.erase((char *)data.begin(), (char *)begin);
 
-	printf("size of data is %d\n", data.size());
+	begin = req.url.c_str();
+	end = req.url.c_str() + req.url.size();
 
-	ThreadPool::GetInstance().AddTask(new ResponseTask(cid));
+	for(; begin < end && *begin != '?'; ++begin) ;
+
+	if(begin != end)
+	{
+		std::string key, value;
+		for(tmp = ++begin; begin < end;)
+		{
+			if(*begin == '=')
+			{
+				key = std::string(tmp, begin);
+				tmp = ++begin;
+			}
+			else if(*begin == '&')
+			{
+				value = std::string(tmp, begin);
+				tmp = ++begin;
+
+				req.args[key] = value;
+
+				key.clear();
+				value.clear();
+			}
+			else
+			{
+				++begin;
+			}
+		}
+		if(key.size())
+		{
+			value = std::string(tmp, begin);
+			req.args[key] = value;	
+		}
+		else if(tmp < begin)
+		{
+			key = std::string(tmp, begin);
+			req.args[key] = value;
+		}
+	}
+
+	ThreadPool::GetInstance().AddTask(new ResponseTask(cid, req));
 #undef parse_state_t
 }
 

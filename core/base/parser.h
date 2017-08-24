@@ -29,6 +29,7 @@ public:
 		std::string version;
 		std::map<std::string, std::string> headers;
 		std::string body;
+		std::map<std::string, std::string> args;
 	};
 
 	HttpParser(channel_id_t c)

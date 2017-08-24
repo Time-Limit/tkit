@@ -7,6 +7,7 @@ Channel::Channel(int f)
 	: fd(f)
 	, cid(ChannelManager::AllocID())
 	, ready_send(false)
+	, ready_close(false)
 	{
 		fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
 	}
@@ -27,10 +28,12 @@ void Channel::Handle(const epoll_event *event)
 
 void Channel::Send()
 {
+	if(IsClose()) return;
 	{
+		signal(SIGPIPE, SIG_IGN);
 		MutexGuard guarder(olock);	
 		ready_send = false;	
-		size_t per_cnt = 0, cnt = 0;
+		int per_cnt = 0, cnt = 0;
 		do
 		{
 			if((per_cnt = write(fd, ((char *)obuff.begin()) + cnt, obuff.size() - cnt)) >= 0)
@@ -53,6 +56,7 @@ void Channel::Send()
 
 void Channel::Recv()
 {
+	if(IsClose()) return;
 	int cnt = 0, per_cnt = 0;
 	do
 	{
@@ -100,6 +104,8 @@ void Channel::PutData(const char * buf, size_t size)
 
 void Channel::Close()
 {
+	if(IsClose()) return;
+	ready_close = true;
 	ChannelManager::GetInstance().ReadyClose(this);
 }
 

@@ -58,6 +58,7 @@ private:
 	bool ready_send;
 
 	void Close();
+	bool IsClose() { return ready_close; };
 	virtual void Send();
 	virtual void Recv();
 	virtual void OnRecv();
@@ -66,6 +67,7 @@ protected:
 	int fd;
 	channel_id_t cid;
 	Parser * parser;
+	bool ready_close;
 };
 
 class Acceptor : Channel

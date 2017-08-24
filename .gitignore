@@ -1,3 +1,4 @@
 *.o
 gate
 .git-credentials
+log.txt

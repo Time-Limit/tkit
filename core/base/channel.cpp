@@ -30,7 +30,6 @@ void Channel::Send()
 {
 	if(IsClose()) return;
 	{
-		signal(SIGPIPE, SIG_IGN);
 		MutexGuard guarder(olock);	
 		ready_send = false;	
 		int per_cnt = 0, cnt = 0;

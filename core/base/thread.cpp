@@ -56,7 +56,6 @@ void TPTask::Exec()
 		if(task)
 		{
 			task->Exec();
-			usleep(100);
 			++work_count;
 		}
 	}

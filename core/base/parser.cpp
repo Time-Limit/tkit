@@ -15,7 +15,7 @@ public:
 	{}
 	void Exec()
 	{
-		static const char * content = "HTTP/1.1 200 SUCCESS\r\nContent-Length:3\r\n\r\nzmx";
+		sleep(3);
 		std::stringstream stream;
 		stream << "url = " << request.url << "\n";
 		stream << "method = " << request.method << "\n";

@@ -1,5 +1,4 @@
 #include "thread.h"
-#include "log.h"
 
 void * Thread::Run(void * args)
 {
@@ -9,7 +8,7 @@ void * Thread::Run(void * args)
 	}
 }
 
-Thread::Thread(Task *task)
+Thread::Thread(Task *t) : task(t)
 {
 	int res = pthread_create(&tid, NULL, Thread::Run, (void *)task);
 	if(res)
@@ -21,6 +20,8 @@ Thread::Thread(Task *task)
 Thread::~Thread()
 {
 	pthread_join(tid, NULL);
+	delete task;
+	task = NULL;
 }
 
 TPTask::TPTask(ThreadPool *p)
@@ -34,27 +35,28 @@ TPTask::~TPTask()
 }
 
 void TPTask::Exec()
-{
+{ Log::Trace("thread 0x%x will work.\n", pthread_self());
 	for(;;)
 	{
 		pthread_mutex_lock(&pool->lock);
 
-		if(pool->quit && pool->tasks.empty())
+		if(pool->quit)
 		{
 			pthread_mutex_unlock(&pool->lock);
 			Log::Trace("thread 0x%x will quit.\n", pthread_self());
 			pthread_exit(NULL) ;
+			return ;
 		}
 
-		if(pool->tasks.empty())
+		if(pool->quit == false && pool->tasks.empty())
 		{
 			pthread_cond_wait(&pool->cond, &pool->lock);
 		}
 		Task *task = pool->GetTaskWithoutLock();
 		pthread_mutex_unlock(&pool->lock);
-		//printf("thread = 0x%x, task = 0x%x\n", pthread_self(), task);
 		if(task)
 		{
+			printf("thread = 0x%x, task = 0x%x\n", pthread_self(), task);
 			task->Exec();
 		}
 	}
@@ -62,6 +64,7 @@ void TPTask::Exec()
 
 ThreadPool::ThreadPool()
 	: quit(false)
+	, start(false)
 {
 	lock = PTHREAD_MUTEX_INITIALIZER;
 	cond = PTHREAD_COND_INITIALIZER;
@@ -84,6 +87,7 @@ ThreadPool::~ThreadPool()
 	for(unsigned int i = 0; i < TP_MAX_SIZE; ++i)
 	{
 		delete pool[i];
+		pool[i] = NULL;
 	}
 	pool.clear();
 
@@ -105,18 +109,37 @@ Task *ThreadPool::GetTaskWithoutLock()
 
 bool ThreadPool::AddTask(Task *task)
 {
-	if(!task) {return false;}
+	if(!task) { return false; }
 	
 	bool need_notify = false;
 
 	pthread_mutex_lock(&lock);
 
-	if(quit) {return false;}
+	if(quit)
+	{
+		pthread_mutex_unlock(&lock);
+		return false;
+	}
 	if(!tasks.size()) need_notify = true;
 	tasks.push(task);
-
+	
 	pthread_mutex_unlock(&lock);
+
+	if(!start) { return true; }
 	if(need_notify) pthread_cond_signal(&cond);
 
 	return true;
+}
+
+void ThreadPool::Start()
+{
+	assert(start == false);
+	start = true;
+
+	pthread_cond_signal(&cond);	
+	signal(SIGINT, ThreadPool::StopFunc);	
+	while(start)
+	{
+		sleep(1);
+	}
 }

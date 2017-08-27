@@ -5,7 +5,6 @@
 
 void GateTask::Exec()
 {
-	signal(SIGPIPE, SIG_IGN);
-	while(true) Neter::GetInstance().Wait(1000);
-	//ThreadPool::GetInstance().AddTask(this);
+	Neter::GetInstance().Wait(1000);
+	ThreadPool::GetInstance().AddTask(this);
 }

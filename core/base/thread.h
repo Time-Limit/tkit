@@ -12,17 +12,19 @@
 #include <string.h>
 #include <signal.h>
 #include "task.h"
+#include "log.h"
 
 class ThreadPool;
 
 class Thread
 {
 public:
-	Thread(Task *task);
+	Thread(Task *t);
 	~Thread();
 	
 	static void * Run(void *args);
 private:
+	Task * task;
 	pthread_t tid;
 };
 
@@ -55,11 +57,18 @@ public:
 	typedef std::queue<Task *> Queue;
 
 	bool AddTask(Task *task);
+
+	void Start();
 	
 	static ThreadPool& GetInstance()
 	{
 		static ThreadPool instance;
 		return instance;
+	}
+	
+	static void StopFunc(int)
+	{
+		ThreadPool::GetInstance().Stop();
 	}
 
 private:
@@ -74,6 +83,14 @@ private:
 	TPTask *thread_pool_task;
 
 	Task * GetTaskWithoutLock();
+
+	bool start;
+
+	void Stop()
+	{
+		start = false;
+		Log::Trace("ThreadPool::Stop, i will quit.\n");
+	}
 };
 
 #endif

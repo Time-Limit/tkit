@@ -5,11 +5,11 @@
 
 int main()
 {
+	signal(SIGPIPE, SIG_IGN);
 	assert(Acceptor::Listen(80, HttpParser::Hatcher));
-	Thread * gate_task_thread = new Thread(new GateTask());
-	while(true)
-	{
-		;
-	}
+	ThreadPool::GetInstance().AddTask(new GateTask());
+
+	ThreadPool::GetInstance().Start();
+
 	return 0;
 }

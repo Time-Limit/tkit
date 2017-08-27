@@ -2,6 +2,7 @@
 #include "exptype.h"
 #include "neter.h"
 #include "thread.h"
+#include <arpa/inet.h>
 
 Channel::Channel(int f)
 	: fd(f)
@@ -108,7 +109,7 @@ void Channel::Close()
 	ChannelManager::GetInstance().ReadyClose(this);
 }
 
-bool Acceptor::Listen(int port, ParserHatcher hatcher)
+bool Acceptor::Listen(const char * ip, int port, ParserHatcher hatcher)
 {
 	int sockfd = 0;
 	int optval = -1;
@@ -125,8 +126,13 @@ bool Acceptor::Listen(int port, ParserHatcher hatcher)
 
 	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 	memset(&server, 0, socklen);
-	
-	server.sin_addr.s_addr = htonl(INADDR_ANY);
+	struct in_addr address;
+	if(inet_pton(AF_INET, ip, &address) == -1)
+	{
+		Log::Error("Acceptor::inet_pton, ip=%s, error=%s\n", ip, strerror(errno));
+		return false;
+	}
+	server.sin_addr.s_addr = address.s_addr;
 	server.sin_port = htons(port);
 	server.sin_family = AF_INET;
 

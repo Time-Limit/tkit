@@ -78,7 +78,7 @@ public:
 	, Channel(f)
 	{};
 
-	static bool Listen(int port, ParserHatcher hatcher);
+	static bool Listen(const char * ip, int port, ParserHatcher hatcher);
 
 private:
 

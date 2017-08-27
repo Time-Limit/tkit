@@ -37,6 +37,7 @@ public:
 	~TPTask();
 private:
 	ThreadPool *pool;
+	size_t work_count;
 };
 
 class ThreadPool

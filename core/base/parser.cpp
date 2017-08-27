@@ -15,7 +15,6 @@ public:
 	{}
 	void Exec()
 	{
-		sleep(3);
 		std::stringstream stream;
 		stream << "url = " << request.url << "\n";
 		stream << "method = " << request.method << "\n";

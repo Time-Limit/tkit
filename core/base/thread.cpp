@@ -8,7 +8,8 @@ void * Thread::Run(void * args)
 	}
 }
 
-Thread::Thread(Task *t) : task(t)
+Thread::Thread(Task *t)
+	: task(t)
 {
 	int res = pthread_create(&tid, NULL, Thread::Run, (void *)task);
 	if(res)
@@ -24,10 +25,7 @@ Thread::~Thread()
 	task = NULL;
 }
 
-TPTask::TPTask(ThreadPool *p)
-{
-	pool = p;
-}
+TPTask::TPTask(ThreadPool *p) : pool(p), work_count(0) {}
 
 TPTask::~TPTask()
 {
@@ -35,7 +33,8 @@ TPTask::~TPTask()
 }
 
 void TPTask::Exec()
-{ Log::Trace("thread 0x%x will work.\n", pthread_self());
+{
+	Log::Trace("thread 0x%x will work.\n", pthread_self());
 	for(;;)
 	{
 		pthread_mutex_lock(&pool->lock);
@@ -43,7 +42,7 @@ void TPTask::Exec()
 		if(pool->quit)
 		{
 			pthread_mutex_unlock(&pool->lock);
-			Log::Trace("thread 0x%x will quit.\n", pthread_self());
+			Log::Trace("thread 0x%x will quit, work_count=%d.\n", pthread_self(), work_count);
 			pthread_exit(NULL) ;
 			return ;
 		}
@@ -56,8 +55,9 @@ void TPTask::Exec()
 		pthread_mutex_unlock(&pool->lock);
 		if(task)
 		{
-			printf("thread = 0x%x, task = 0x%x\n", pthread_self(), task);
 			task->Exec();
+			usleep(100);
+			++work_count;
 		}
 	}
 }
@@ -69,11 +69,9 @@ ThreadPool::ThreadPool()
 	lock = PTHREAD_MUTEX_INITIALIZER;
 	cond = PTHREAD_COND_INITIALIZER;
 
-	thread_pool_task = new TPTask(this);
-
 	for(unsigned int i = 0; i < TP_MAX_SIZE; ++i)
 	{
-		pool[i] = new Thread(thread_pool_task);
+		pool[i] = new Thread(new TPTask(this));
 	}
 }
 

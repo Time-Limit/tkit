@@ -47,6 +47,9 @@ public:
 	void SetParser(Parser *p) { parser = p; };
 
 	channel_id_t GetCid() const { return cid; }
+
+	void InitPeerName();
+
 private:
 	Mutex olock;
 	Octets ibuff, obuff;
@@ -63,6 +66,7 @@ private:
 	virtual void Recv();
 	virtual void OnRecv();
 
+	char ip[16] /*xxx.xxx.xxx.xxx*/;
 protected:
 	int fd;
 	channel_id_t cid;
@@ -105,6 +109,7 @@ private:
 
 	typedef std::vector<Channel *> ChannelVector;
 	ChannelVector ready_close_vector;
+
 public:
 	bool PutData(channel_id_t cid, const char *buf, size_t size);
 

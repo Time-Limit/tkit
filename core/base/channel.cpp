@@ -11,6 +11,18 @@ Channel::Channel(int f)
 	, ready_close(false)
 	{
 		fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+
+		struct sockaddr_in peer;
+		int len = sizeof(sockaddr_in);
+		if(getpeername(fd, (sockaddr *)&peer, (socklen_t *)&len) == 0)
+		{
+			inet_ntop(AF_INET, &peer.sin_addr, ip, sizeof(ip));
+		}
+		else
+		{
+			memset(ip, 0, sizeof(ip));
+			Log::Trace("Channel::Channel, getpeername failed, errno=%d\n", strerror(errno));
+		}
 	}
 
 void Channel::Handle(const epoll_event *event)
@@ -149,17 +161,22 @@ bool Acceptor::Listen(const char * ip, int port, ParserHatcher hatcher)
 	return true;
 }
 
+void Channel::InitPeerName()
+{
+}
+
 void Acceptor::OnRecv()
 {
 	struct sockaddr_in accept_addr;
 	int server_addr_len;
 	int connect_fd;
 	
-	while((connect_fd = accept(fd, (struct sockaddr *)&accept_addr, (socklen_t *)&server_addr_len)) > 0)
+	while((connect_fd = accept(fd, (struct sockaddr *)&accept_addr, (socklen_t *)&server_addr_len)) > 0 || errno == EINTR)
 	{
 		Log::Trace("Acceptor::Recv, connect_fd=%d\n", connect_fd);
 		Channel *c = new Channel(connect_fd);
 		c->SetParser(hatcher(c->GetCid()));
+		c->InitPeerName();
 		ChannelManager::GetInstance().Add(c);
 	}
 }

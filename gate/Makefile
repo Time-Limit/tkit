@@ -8,7 +8,7 @@ lib_objs = ../core/lib/lua/liblua.a
 
 objs = $(core_objs) $(gate_objs)
 
-inl= -I../core/base -I../core/inl -I.
+inl= -I../core/base -I../core/lib/lua -I../core/inl -I.
 
 gate: $(objs)
 	g++ -o gate $(objs) -std=c++11 -lpthread -g -ldl $(lib_objs)

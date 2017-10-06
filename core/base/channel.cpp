@@ -12,17 +12,7 @@ Channel::Channel(int f)
 	{
 		fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
 
-		struct sockaddr_in peer;
-		int len = sizeof(sockaddr_in);
-		if(getpeername(fd, (sockaddr *)&peer, (socklen_t *)&len) == 0)
-		{
-			inet_ntop(AF_INET, &peer.sin_addr, ip, sizeof(ip));
-		}
-		else
-		{
-			memset(ip, 0, sizeof(ip));
-			Log::Trace("Channel::Channel, getpeername failed, errno=%d\n", strerror(errno));
-		}
+		memset(ip, 0, sizeof(ip));
 	}
 
 void Channel::Handle(const epoll_event *event)
@@ -163,6 +153,18 @@ bool Acceptor::Listen(const char * ip, int port, ParserHatcher hatcher)
 
 void Channel::InitPeerName()
 {
+	struct sockaddr_in peer;
+	int len = sizeof(sockaddr_in);
+	if(getpeername(fd, (sockaddr *)&peer, (socklen_t *)&len) == 0)
+	{
+		inet_ntop(AF_INET, &peer.sin_addr, ip, sizeof(ip));
+		Log::Trace("Channel::InitPeerName, ip=%s\n", ip);
+	}
+	else
+	{
+		memset(ip, 0, sizeof(ip));
+		Log::Error("Channel::InitPeerName, getpeername failed, errno=%s\n", strerror(errno));
+	}
 }
 
 void Acceptor::OnRecv()

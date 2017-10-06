@@ -4,7 +4,7 @@ core_objs = ../core/base/neter.o ../core/base/thread.o ../core/base/log.o ../cor
 
 gate_objs = gate.o gatetask.o
 
-lib_objs = ../core/lib/liblua.a
+lib_objs = ../core/lib/lua/liblua.a
 
 objs = $(core_objs) $(gate_objs)
 

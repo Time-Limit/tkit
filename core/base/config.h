@@ -178,6 +178,9 @@ public:
 		}
 		return table.tab[k];
 	}
+
+	Config(const Config&) = delete;
+	Config& operator= (const Config&) = delete;
 private:
 	void Load(std::shared_ptr<lua_State>, Value &);
 	Value table;

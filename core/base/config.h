@@ -6,6 +6,7 @@
 #include <memory>
 #include <iostream>
 #include <functional>
+#include <initializer_list>
 
 extern "C"
 {
@@ -170,6 +171,8 @@ public:
 		Load(sp, table);
 	}
 
+	Config(const std::string &file) : Config(file.c_str()) {}
+
 	const Value& operator[](const Key &k) const
 	{
 		if(!table.IsTab())
@@ -184,6 +187,32 @@ public:
 private:
 	void Load(std::shared_ptr<lua_State>, Value &);
 	Value table;
+};
+
+class ConfigManager
+{
+public:
+	using ConfigMap = std::map<std::string, Config *>;
+private:
+	ConfigManager() = default;
+	ConfigManager(const ConfigManager &) = delete;
+	ConfigManager& operator= (const ConfigManager &) = delete;
+
+	ConfigMap config_map;
+public:
+	static ConfigManager& GetInstance() { static ConfigManager m; return m; }
+
+	size_t Reset(const std::initializer_list<std::string> &il);
+public:
+	~ConfigManager()
+	{
+		for(auto &p : config_map)
+		{
+			delete p.second;
+			p.second = nullptr;
+		}
+		config_map.clear();
+	}
 };
 
 #endif

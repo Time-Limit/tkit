@@ -11,7 +11,6 @@
 #include <sys/epoll.h>
 #include <netinet/in.h>
 #include <assert.h>
-#include "task.h"
 #include "octets.h"
 #include "allocer.h"
 

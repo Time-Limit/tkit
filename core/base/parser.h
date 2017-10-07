@@ -19,7 +19,9 @@ public:
 	virtual void Parse() = 0;
 };
 
-class HttpParser : Parser
+class Task;
+
+class HttpParser : public Parser
 {
 public:
 	struct Request
@@ -30,6 +32,27 @@ public:
 		std::map<std::string, std::string> headers;
 		std::string body;
 		std::map<std::string, std::string> args;
+
+		Request() = default;
+		Request(Request&&) = default;
+		Request& operator=(Request&&) = default;
+		Request(const Request &) = default;
+		Request& operator=(const Request&) = default;
+	};
+
+	struct Response
+	{
+		std::string version = "HTTP/1.1";
+		unsigned short status;
+		std::string statement;
+		std::map<std::string, std::string> headers;
+		std::string body;
+
+		Response() = default;
+		Response(Response&&) = default;
+		Response& operator=(Response&&) = default;
+		Response(const Response &) = default;
+		Response& operator=(const Response&) = default;
 	};
 
 	HttpParser(channel_id_t c)
@@ -38,7 +61,7 @@ public:
 
 	void Parse();
 
-	static Parser * Hatcher(channel_id_t cid) { return new HttpParser(cid); }
+	virtual Task* GenRequestTask(channel_id_t, Request &&req) = 0;
 };
 
 typedef Parser *(*ParserHatcher) (channel_id_t cid);

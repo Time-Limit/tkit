@@ -72,6 +72,8 @@ public:
 		ThreadPool::GetInstance().Stop();
 	}
 
+	bool IsStart() const { return start; }
+
 private:
 
 	Pool pool;

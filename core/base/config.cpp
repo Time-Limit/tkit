@@ -1,4 +1,5 @@
 #include "config.h"
+#include "log.h"
 
 bool operator< (const Key &l, const Key &r)
 {
@@ -92,6 +93,50 @@ void Config::Load(std::shared_ptr<lua_State> sp, Value &value)
 		value.Insert(k, v);
 		lua_pop(L, 1);
 	}
+}
+
+size_t ConfigManager::Reset(const std::initializer_list<std::string> &il)
+{
+	for(auto &p : config_map)
+	{
+		delete p.second;
+		p.second = nullptr;
+	}
+
+	config_map.clear();
+
+	size_t cnt = 0;
+
+	for(const auto &p : il)
+	{
+		Config * c = nullptr;
+		try
+		{
+			c = new Config(p + ".lua");
+			auto it = config_map.insert(std::make_pair(p, c));
+			if(it.second == true)
+			{
+				++cnt;
+			}
+			else
+			{
+				delete c;
+				c = nullptr;
+				Log::Error("ConfigManager:Reset, insert failed, file=%s\n", p.c_str());
+			}
+		}
+		catch(const ConfigException &e)
+		{
+			Log::Error("ConfigManager::Reset, file=%s, what=%d\n", p.c_str(), e.what());
+			if(c)
+			{
+				delete c;
+				c = nullptr;
+			}
+		}
+	}
+
+	return cnt;
 }
 
 /*

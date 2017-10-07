@@ -1,5 +1,5 @@
 *.o
-gate
+website/website
 .git-credentials
 log.txt
 core/base/Makefile

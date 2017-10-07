@@ -57,6 +57,7 @@ void TPTask::Exec()
 		{
 			task->Exec();
 			++work_count;
+			delete task;
 		}
 	}
 }

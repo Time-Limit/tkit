@@ -1,6 +1,5 @@
 #include "neter.h"
 #include "log.h"
-#include "task.h"
 #include "thread.h"
 #include "lock.h"
 #include "channel.h"

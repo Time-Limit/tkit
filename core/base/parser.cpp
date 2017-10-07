@@ -4,51 +4,6 @@
 #include "thread.h"
 #include <sstream>
 
-class ResponseTask : public Task
-{
-	channel_id_t cid;
-	HttpParser::Request request;
-public:
-	ResponseTask(channel_id_t c, const HttpParser::Request &req)
-	: cid(c)
-	, request(req)
-	{}
-	void Exec()
-	{
-		std::stringstream stream;
-		stream << "url = " << request.url << "\n";
-		stream << "method = " << request.method << "\n";
-		stream << "version = " << request.version << "\n";
-		stream << "headers  = " << request.headers.size() << "\n";
-
-		std::map<std::string, std::string>::iterator it = request.headers.begin();
-		std::map<std::string, std::string>::iterator ie = request.headers.end();
-
-		for(; it != ie; ++it)
-		{
-			stream << "header->"<<it->first<<" = "<< it->second << "\n";
-		}
-
-		stream << "body = " << request.body << "\n";
-
-		it = request.args.begin();
-		ie = request.args.end();
-		
-		stream << "args = " << request.args.size() << "\n";
-
-		for(; it != ie; ++it)
-		{
-			stream << "arg->" << it->first << " = " << it->second << "\n";
-		}
-		
-		std::stringstream response;
-
-		response << "HTTP/1.1 200 SUCCESS\r\nContent-Length:" << stream.str().size()<<"\r\n\r\n" << stream.str();
-
-		ChannelManager::GetInstance().PutData(cid, response.str().c_str(), response.str().size());
-	}
-};
-
 void Parser::Append(const Octets &fresh_data)
 {
 	data.insert(data.end(), fresh_data.begin(), fresh_data.size());
@@ -211,16 +166,6 @@ void HttpParser::Parse()
 			req.args[key] = value;
 		}
 	}
-
-	ThreadPool::GetInstance().AddTask(new ResponseTask(cid, req));
+	ThreadPool::GetInstance().AddTask(GenRequestTask(cid, std::move(req)));
 #undef parse_state_t
 }
-
-
-
-
-
-
-
-
-

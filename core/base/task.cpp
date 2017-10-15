@@ -99,7 +99,8 @@ void HttpRequestTask::CompleteResponse()
 		response.body = "";
 	}
 
-	if(response.status != HTTP_SC_OK && response.body == "")
+	if( (response.status != HTTP_SC_OK && response.body.size() == 0)
+		|| (response.header.size() == 0 && response.body.size() == 0))
 	{
 		response.body =
 		"<html>"

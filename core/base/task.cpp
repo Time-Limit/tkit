@@ -104,9 +104,9 @@ void HttpRequestTask::CompleteResponse()
 	{
 		response.body =
 		"<html>"
-		"<p>" + tostring(response.status) + " " + response.statement + "</p>"
+		"<head align=\"center\">" + tostring(response.status) + " " + response.statement + "</head>"
 		"<hr></hr>"
-		"<p>tcore</p>"
+		"<p align=\"center\">tcore</p>"
 		"</html>";
 		response.headers["Content-Length"] = tostring(response.body.size());
 		response.headers["Content-Type"] = GetMimeType("html");

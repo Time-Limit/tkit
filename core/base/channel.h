@@ -38,6 +38,8 @@ public:
 		{
 			Log::Error("Channel::~Channel, close failed, %d(%s)\n", errno, strerror(errno));
 		}
+
+		delete parser;
 	}
 
 

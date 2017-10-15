@@ -7,6 +7,7 @@
 Channel::Channel(int f)
 	: fd(f)
 	, cid(ChannelManager::AllocID())
+	, parser(nullptr)
 	, ready_send(false)
 	, ready_close(false)
 	{
@@ -85,9 +86,9 @@ void Channel::Recv()
 
 void Channel::OnRecv()
 {
-	parser->Append(ibuff);
+	if(parser) parser->Append(ibuff);
 	ibuff.clear();
-	parser->Parse();
+	if(parser) parser->Parse();
 }
 
 void Channel::PutData(const char * buf, size_t size)

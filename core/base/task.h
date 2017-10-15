@@ -27,6 +27,7 @@ public:
 class HttpRequestTask : public Task
 {
 	channel_id_t cid;
+protected:
 	HttpParser::Request request;
 	HttpParser::Response response;
 public:

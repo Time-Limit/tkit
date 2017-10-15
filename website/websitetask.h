@@ -49,4 +49,23 @@ protected:
 	//virtual void ExtendCompleteResponse() override;
 };
 
+class RedirectReq : public HttpRequestTask
+{
+public:
+	RedirectReq(channel_id_t c, const HttpParser::Request &req)
+	: HttpRequestTask(c, req) {}
+	RedirectReq(channel_id_t c, HttpParser::Request &&req)
+	: HttpRequestTask(c, std::move(req)) {}
+
+	RedirectReq(const RedirectReq &) = default;
+	RedirectReq& operator= (const RedirectReq &) = default;
+	RedirectReq(RedirectReq &&) = default;
+	RedirectReq& operator= (RedirectReq&&) = default;
+protected:
+	//virtual void ExtendBaseCheckRequest() override;
+	virtual void LogicCheckRequest() override;
+	virtual void ConstructResponse() override;
+	//virtual void ExtendCompleteResponse() override;
+};
+
 #endif

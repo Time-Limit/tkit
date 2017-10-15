@@ -15,7 +15,7 @@ Task* WebsiteParser::GenRequestTask(channel_id_t c, Request &&req)
 	return new SourceReq(c, std::move(req));
 }
 
-Parser* WebsiteParser::Hatcher(channel_id_t c)
+Task* Website_80_Port_Parser::GenRequestTask(channel_id_t c, Request &&req)
 {
-	return new WebsiteParser(c);
+	return new RedirectReq(c, std::move(req));
 }

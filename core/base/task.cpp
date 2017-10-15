@@ -104,7 +104,7 @@ void HttpRequestTask::CompleteResponse()
 	{
 		response.body =
 		"<html>"
-		"<head align=\"center\">" + tostring(response.status) + " " + response.statement + "</head>"
+		"<h1 align=\"center\">" + tostring(response.status) + " " + response.statement + "</h1>"
 		"<hr></hr>"
 		"<p align=\"center\">tcore</p>"
 		"</html>";

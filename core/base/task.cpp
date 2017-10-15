@@ -104,7 +104,7 @@ void HttpRequestTask::CompleteResponse()
 	{
 		response.body =
 		"<html>"
-		"<p>" + response.statement + "</p>"
+		"<p>" + tostring(response.status) + " " + response.statement + "</p>"
 		"<hr></hr>"
 		"<p>tcore</p>"
 		"</html>";

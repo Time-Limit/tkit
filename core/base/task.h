@@ -12,10 +12,23 @@ public:
 	virtual void Exec() = 0;
 };
 
+/*
+ * HttpRequestTask Ê¹ÓÃËµÃ÷
+ * 1. Ê×ÏÈ£¬ÔÚÀàÖ´ÐÐ³õÊ¼»¯Ê±£¬ÒÑ¾­ÓÐÁË¿Í»§¶ËµÄÇëÇó±¨ÎÄ¡£µ«ÊÇºÜ´Ö²Ú£¬²¢Ã»ÓÐ¶Ô±¨ÎÄ½øÐÐ¼ì²é¡£
+ * 2. void Exec() { ... } ÖÐµ÷ÓÃÁË¸ÃÀàµÄÒ»Ð©º¯Êý¡£
+ * 3. ÕâÐ©º¯Êý·Ö±ðÊÇ, BaseCheckRequest, ExtendBaseCheckRequest, LogicCheckRequest, ConsturctResponse, CompleteResponse, ExtendComplexteResponse¡£
+ * 4. BaseCheckRequest : ¹ýÂË²»Ö§³ÖµÄÌØÐÔ£¬¼ì²éÊÇ·ñÓÐ»ù±¾µÄÇëÇóÍ·£¬¼ì²éurlÊÇ·ñºÏ·¨£¬¹¹ÔìÏìÓ¦ÐÐ¡£
+ * 5. ExtendBaseCheckRequest : ¿ÉÓÉ×ÓÀà×Ô¼º²¹³ä¡£
+ * 6. LogicCheckRequest: ¼ì²é¸ÃÇëÇóµÄÂß¼­ÊÇ·ñÕýÈ·¡£
+ * 7. ConstructResponse: ¹¹ÔìÏìÓ¦±¨ÎÄ¡£
+ * 8. CompleteResponse : ²¹³ä±ØÐèµÄÏìÓ¦×Ö¶Î¡£
+ * 9. ExtendCompleteResponse : ¿ÉÓÉ×ÓÀà×Ô¼º²¹³ä¡£
+ */
 class HttpRequestTask : public Task
 {
 	channel_id_t cid;
 	HttpParser::Request request;
+	HttpParser::Response response;
 public:
 	HttpRequestTask(channel_id_t c, const HttpParser::Request &req)
 	: cid(c)
@@ -31,9 +44,33 @@ public:
 	HttpRequestTask& operator= (HttpRequestTask &&) = default;
 	HttpRequestTask(const HttpRequestTask &) = default;
 	HttpRequestTask& operator= (const HttpRequestTask &) = default;
+
+	static bool IsValidEscapeChar(unsigned int);
+protected:
+	void BaseCheckRequest();
+	virtual void ExtendBaseCheckRequest();
+	virtual void LogicCheckRequest();
+	virtual void ConstructResponse();
+	void CompleteResponse();
+	virtual void ExtendCompleteResponse();
 public:
-	void Exec() = 0;
+	virtual void Exec() final
+	{
+		BaseCheckRequest();
+		ExtendBaseCheckRequest();
+
+		LogicCheckRequest();
+		ConstructResponse();
+
+		ExtendCompleteResponse();
+		CompleteResponse();
+	}
 };
+
+/*
+ * HttpResponseTask Ê¹ÓÃËµÃ÷
+ * ¸ÃÀà²¢Ã»ÓÐ×ö¹ý¶àµÄÊÂÇé, Ö»ÊÇ½«ÏìÓ¦±¨ÎÄÁ÷»¯²¢·ÅÈë·¢ËÍ¶ÓÁÐ¡£
+ */
 
 class HttpResponseTask : public Task
 {
@@ -42,14 +79,14 @@ public:
 	using res_stream_t = std::stringstream;
 private:
 	channel_id_t cid;
-	res_data_t response;
+	HttpParser::Response response;
 public:
-	HttpResponseTask(channel_id_t c, const res_data_t &res)
+	HttpResponseTask(channel_id_t c, const HttpParser::Response &res)
 	: cid(c)
 	, response(res)
 	{}
 
-	HttpResponseTask(channel_id_t c, res_data_t &&res)
+	HttpResponseTask(channel_id_t c, HttpParser::Response &&res)
 	: cid(c)
 	, response(std::move(res))
 	{}
@@ -59,11 +96,7 @@ public:
 	HttpResponseTask(const HttpResponseTask &) = default;
 	HttpResponseTask& operator=(const HttpResponseTask &) = default;
 
-	void Exec() {};
-
-	~HttpResponseTask();
-
-	static res_data_t GenResData(const HttpParser::Response &);
+	virtual void Exec() final;
 };
 
 #endif

@@ -13,14 +13,18 @@ void WebsiteTask::Exec()
 	}
 }
 
-void StatusCodeRes::Exec()
+void SourceReq::LogicCheckRequest()
 {
 }
 
-void SourceReq::Exec()
+void SourceReq::ConstructResponse()
 {
 }
 
-void OperateReq::Exec()
+void OperateReq::LogicCheckRequest()
+{
+}
+
+void OperateReq::ConstructResponse()
 {
 }

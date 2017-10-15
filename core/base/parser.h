@@ -42,7 +42,7 @@ public:
 
 	struct Response
 	{
-		std::string version = "HTTP/1.1";
+		std::string version;
 		unsigned short status;
 		std::string statement;
 		std::map<std::string, std::string> headers;

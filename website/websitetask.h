@@ -11,26 +11,6 @@ public:
 	virtual void Exec();
 };
 
-class StatusCodeRes : public HttpResponseTask
-{
-public:
-	StatusCodeRes(channel_id_t c, unsigned short s, HttpParser::Request && req)
-	: HttpResponseTask(c, res_data_t()), status(s), request(std::move(req)) {}
-
-	StatusCodeRes(channel_id_t c, unsigned short s, const HttpParser::Request &req)
-	: HttpResponseTask(c, res_data_t()), status(s), request(req) {}
-
-	StatusCodeRes(const StatusCodeRes &) = default;
-	StatusCodeRes& operator= (const StatusCodeRes &) = default;
-	StatusCodeRes(StatusCodeRes &&) = default;
-	StatusCodeRes& operator= (StatusCodeRes&&) = default;
-
-	virtual void Exec() override;
-private:
-	unsigned short status;
-	HttpParser::Request request;
-};
-
 class SourceReq : public HttpRequestTask
 {
 public:
@@ -43,8 +23,11 @@ public:
 	SourceReq& operator= (const SourceReq &) = default;
 	SourceReq(SourceReq &&) = default;
 	SourceReq& operator= (SourceReq&&) = default;
-
-	virtual void Exec() override;
+protected:
+	//virtual void ExtendBaseCheckRequest() override;
+	virtual void LogicCheckRequest() override;
+	virtual void ConstructResponse() override;
+	//virtual void ExtendCompleteResponse() override;
 };
 
 class OperateReq : public HttpRequestTask
@@ -59,8 +42,11 @@ public:
 	OperateReq& operator= (const OperateReq &) = default;
 	OperateReq(OperateReq &&) = default;
 	OperateReq& operator= (OperateReq&&) = default;
-
-	virtual void Exec() override;
+protected:
+	//virtual void ExtendBaseCheckRequest() override;
+	virtual void LogicCheckRequest() override;
+	virtual void ConstructResponse() override;
+	//virtual void ExtendCompleteResponse() override;
 };
 
 #endif

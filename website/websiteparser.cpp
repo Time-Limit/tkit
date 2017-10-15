@@ -11,7 +11,8 @@ Task* WebsiteParser::GenRequestTask(channel_id_t c, Request &&req)
 	{
 		return new OperateReq(c, std::move(req));
 	}
-	return new StatusCodeRes(c, 403, std::move(req));
+	req.url = "/source/index.html";
+	return new SourceReq(c, std::move(req));
 }
 
 Parser* WebsiteParser::Hatcher(channel_id_t c)

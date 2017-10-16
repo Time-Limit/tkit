@@ -14,8 +14,6 @@ File::File(const std::string& n) : name(n)
 	{
 		content += line;
 	}
-
-	std::cout << content << std::endl;
 }
 
 File FileManager::GetFile(const std::string &name)

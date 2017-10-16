@@ -164,10 +164,11 @@ public:
 		sp.reset(L, [](lua_State *L) {lua_close(L);});
 		if(luaL_loadfile(L, file) || lua_pcall(L, 0, 0, 0))
 		{
+			std::cout << lua_tostring(L, -1) << std::endl;
 			throw ConfigException(LUA_LOAD_FILE_FAILED);
 		}
 
-		lua_getglobal(L, "config");
+		lua_getglobal(L, "ConfigTable");
 		Load(sp, table);
 	}
 
@@ -212,6 +213,16 @@ public:
 			p.second = nullptr;
 		}
 		config_map.clear();
+	}
+
+	const Config* GetConfig(const std::string &name)
+	{
+		const auto it = config_map.find(name);
+		if(it != config_map.end())
+		{
+			return it->second;
+		}
+		return NULL;
 	}
 };
 

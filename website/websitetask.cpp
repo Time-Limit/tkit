@@ -2,6 +2,8 @@
 #include "thread.h"
 #include "websitetask.h"
 #include "enums.h"
+#include "websitebase.h"
+#include "basetool.h"
 #include <stdlib.h>
 
 void WebsiteTask::Exec()
@@ -45,11 +47,11 @@ void RedirectReq::LogicCheckRequest()
 	size_t pos = host.find(':');
 	if(pos == std::string::npos)
 	{
-		response.headers["Location"] = host + request.url;
+		response.headers["Location"] = host + tostring(default_https_port) + request.url;
 	}
 	else
 	{
-		response.headers["Location"] = host.substr(0, pos) + request.url;
+		response.headers["Location"] = host.substr(0, pos) + tostring(default_https_port) + request.url;
 	}
 }
 

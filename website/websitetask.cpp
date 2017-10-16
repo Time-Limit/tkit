@@ -4,6 +4,7 @@
 #include "enums.h"
 #include "websitebase.h"
 #include "basetool.h"
+#include "file.h"
 #include <stdlib.h>
 
 void WebsiteTask::Exec()
@@ -22,6 +23,7 @@ void SourceReq::LogicCheckRequest()
 
 void SourceReq::ConstructResponse()
 {
+	response.body = File(default_base_folder + request.url).GetContent();
 }
 
 void OperateReq::LogicCheckRequest()

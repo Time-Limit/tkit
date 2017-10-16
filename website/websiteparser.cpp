@@ -14,7 +14,7 @@ Task* WebsiteParser::GenRequestTask(channel_id_t c, Request &&req)
 	else if(strncmp(req.url.c_str(), "/favicon.ico", 12) == 0)
 	{
 		req.url = "/source/favicon.ico";
-		return new OperateReq(c, std::move(req));
+		return new SourceReq(c, std::move(req));
 	}
 	req.url = "/source/index.html";
 	return new SourceReq(c, std::move(req));

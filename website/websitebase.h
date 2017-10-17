@@ -3,8 +3,8 @@
 
 #include <string>
 
-static unsigned int default_http_port = 80;
-static unsigned int default_https_port = 443;
-static std::string default_base_folder = "./";
+extern unsigned int default_http_port; 
+extern unsigned int default_https_port;
+extern std::string default_base_folder;
 
 #endif

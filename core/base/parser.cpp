@@ -97,7 +97,6 @@ void HttpParser::Parse()
 			{
 				std::map<std::string, std::string>::const_iterator cit = req.headers.find("Content-Length");
 
-
 				int length = 0;
 
 				if(cit != req.headers.end())

@@ -23,6 +23,7 @@ void SourceReq::LogicCheckRequest()
 
 void SourceReq::ConstructResponse()
 {
+	except_status_code(response, HTTP_SC_OK);
 	response.body = File(default_base_folder + request.url).GetContent();
 }
 
@@ -36,27 +37,30 @@ void OperateReq::ConstructResponse()
 
 void RedirectReq::LogicCheckRequest()
 {
-	const auto &it = request.headers.find("Host");
+	except_status_code(response, HTTP_SC_OK);
+
+	const auto &it = request.headers.find(HTTP_HOST);
 	if(it == request.headers.cend())
 	{
 		ResetHttpResponseStatus(response, HTTP_SC_BAD_REQUEST);
 		return ;
 	}
-
-	ResetHttpResponseStatus(response, HTTP_SC_MOVED_PERMANENTLY);
-
-	const std::string &host = it->second;
-	size_t pos = host.find(':');
-	if(pos == std::string::npos)
-	{
-		response.headers["Location"] = host + tostring(default_https_port) + request.url;
-	}
-	else
-	{
-		response.headers["Location"] = host.substr(0, pos) + tostring(default_https_port) + request.url;
-	}
 }
 
 void RedirectReq::ConstructResponse()
 {
+	except_status_code(response, HTTP_SC_OK);
+
+	ResetHttpResponseStatus(response, HTTP_SC_MOVED_PERMANENTLY);
+
+	const std::string &host = request.headers[HTTP_HOST];
+	size_t pos = host.find(':');
+	if(pos == std::string::npos)
+	{
+		ForceSetHeader(response, HTTP_LOCATION, "http://" + host + ':' + tostring(default_https_port));
+	}
+	else
+	{
+		ForceSetHeader(response, HTTP_LOCATION, "http://" + host.substr(0, pos) + ':' + tostring(default_https_port));
+	}
 }

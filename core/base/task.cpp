@@ -56,7 +56,7 @@ void HttpRequestTask::BaseCheckRequest()
 	}
 
 	// forbid some headers
-	if(request.headers.find("Transfer-Encoding") != request.headers.end())
+	if(request.headers.find(HTTP_TRANSFER_ENCODING) != request.headers.end())
 	{
 		ResetHttpResponseStatus(response, HTTP_SC_LENGTH_REQUIRED);
 	}
@@ -65,7 +65,7 @@ void HttpRequestTask::BaseCheckRequest()
 	if(request.method != "GET" && request.method != "HEAD")
 	{
 		ResetHttpResponseStatus(response, HTTP_SC_LENGTH_REQUIRED);
-		response.headers["Allow"] = "GET, HEAD";
+		ForceSetHeader(response, HTTP_ALLOW, "GET, HEAD");
 	}
 
 	// forbid ".." in url.
@@ -77,30 +77,18 @@ void HttpRequestTask::BaseCheckRequest()
 			response.statement = "forbid \"..\" in url.";
 		}
 	}
-}
 
-void HttpRequestTask::ExtendBaseCheckRequest()
-{
-}
-
-void HttpRequestTask::LogicCheckRequest()
-{
-}
-
-void HttpRequestTask::ConstructResponse()
-{
+	// complete url
+	if(request.url == "/")
+	{
+		request.url = "/index.html";
+	}
 }
 
 void HttpRequestTask::CompleteResponse()
 {
-	// if request's method is HEAD, then body should be cleared.
-	if(request.method == "HEAD")
-	{
-		response.body = "";
-	}
-
-	if( (response.status != HTTP_SC_OK && response.body.size() == 0)
-		|| (response.headers.size() == 0 && response.body.size() == 0))
+	//complete response
+	if(response.body.size() == 0)
 	{
 		response.body =
 		"<html>"
@@ -108,25 +96,30 @@ void HttpRequestTask::CompleteResponse()
 		"<hr></hr>"
 		"<p align=\"center\">tcore</p>"
 		"</html>";
-		response.headers["Content-Length"] = tostring(response.body.size());
-		response.headers["Content-Type"] = GetMimeType("html");
+		ForceSetHeader(response, HTTP_CONTENT_LENGTH, tostring(response.body.size()));
+		ForceSetHeader(response, HTTP_CONTENT_TYPE, GetMimeType("html"));
 	}
-	ThreadPool::GetInstance().AddTask(new HttpResponseTask(cid, response));
-}
+	TrySetHeader(response, HTTP_CONTENT_TYPE, GetMimeType(GetFileSuffixName(request.url)));
+	TrySetHeader(response, HTTP_CONTENT_LENGTH, tostring(response.body.size()));
 
-void HttpRequestTask::ExtendCompleteResponse()
-{
+	// if request's method is HEAD, then body should be cleared.
+	if(request.method == "HEAD")
+	{
+		response.body = "";
+	}
+
+	ThreadPool::GetInstance().AddTask(new HttpResponseTask(cid, response));
 }
 
 void HttpResponseTask::Exec()
 {
 	res_stream_t streamer;
-	streamer << response.version <<  " " << response.status << " " << response.statement << "\r\n";
+	streamer << response.version <<  " " << response.status << " " << response.statement << '\r' << '\n';
 	for(const auto &p : response.headers)
 	{
-		streamer << p.first <<  ": " << p.second << "\r\n";
+		streamer << p.first <<  ": " << p.second << '\r' << '\n';
 	}
-	streamer << "\r\n";
+	streamer << '\r' << '\n';
 	streamer << response.body;
 	ChannelManager::GetInstance().PutData(cid, streamer.str().c_str(), streamer.str().size());
 }

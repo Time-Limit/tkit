@@ -47,7 +47,7 @@ void Channel::Send()
 					return;
 				}
 			}
-		}while(per_cnt >= 0 || errno == EINTR);
+		}while(per_cnt >= 0 || errno == EINTR || errno == EAGAIN);
 
 		obuff.clear();
 	}

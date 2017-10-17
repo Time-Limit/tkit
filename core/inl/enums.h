@@ -55,6 +55,66 @@ extern std::map<suffix_name_t, mime_type_t> HTTP_MIME_MAP;
 
 const mime_type_t& GetMimeType(const suffix_name_t&);
 
-#define  ResetHttpResponseStatus( r, s) { (r).status = (s); (r).statement = GetStatusCodeInfo(s); }
+// HTTP-HEADER
+extern std::string HTTP_ACCEPT ;
+extern std::string HTTP_ACCEPT_CHARSET ;
+extern std::string HTTP_ACCEPT_DATETIME ;
+extern std::string HTTP_ACCEPT_ENCODING ;
+extern std::string HTTP_ACCEPT_LANGUAGE ;
+extern std::string HTTP_ACCEPT_PATCH ;
+extern std::string HTTP_ACCEPT_RANGES ;
+extern std::string HTTP_ACCESS_CONTROL_ALLOW_ORIGIN ;
+extern std::string HTTP_AGE ;
+extern std::string HTTP_ALLOW ;
+extern std::string HTTP_AUTHORIZATION ;
+extern std::string HTTP_CACHE_CONTROL ;
+extern std::string HTTP_CONNECTION ;
+extern std::string HTTP_CONTENT_DISPOSITION ;
+extern std::string HTTP_CONTENT_ENCODING ;
+extern std::string HTTP_CONTENT_LANGUAGE ;
+extern std::string HTTP_CONTENT_LENGTH ;
+extern std::string HTTP_CONTENT_LOCATION ;
+extern std::string HTTP_CONTENT_MD5 ;
+extern std::string HTTP_CONTENT_RANGE ;
+extern std::string HTTP_CONTENT_TYPE ;
+extern std::string HTTP_COOKIE ;
+extern std::string HTTP_DATE ;
+extern std::string HTTP_ETAG ;
+extern std::string HTTP_EXPECT ;
+extern std::string HTTP_EXPIRES ;
+extern std::string HTTP_FROM ;
+extern std::string HTTP_HOST ;
+extern std::string HTTP_IF_MATCH ;
+extern std::string HTTP_IF_MODIFIED_SINCE ;
+extern std::string HTTP_IF_NONE_MATCH ;
+extern std::string HTTP_IF_RANGE ;
+extern std::string HTTP_IF_UNMODIFIED_SINCE ;
+extern std::string HTTP_LAST_MODIFIED ;
+extern std::string HTTP_LINK ;
+extern std::string HTTP_LOCATION ;
+extern std::string HTTP_MAX_FORWARDS ;
+extern std::string HTTP_ORIGIN ;
+extern std::string HTTP_P3P ;
+extern std::string HTTP_PRAGMA ;
+extern std::string HTTP_PROXY_AUTHENTICATE ;
+extern std::string HTTP_PROXY_AUTHORIZATION ;
+extern std::string HTTP_PUBLIC_KEY_PINS ;
+extern std::string HTTP_RANGE ;
+extern std::string HTTP_REFERER ;
+extern std::string HTTP_REFRESH ;
+extern std::string HTTP_RETRY_AFTER ;
+extern std::string HTTP_SERVER ;
+extern std::string HTTP_SET_COOKIE ;
+extern std::string HTTP_STATUS ;
+extern std::string HTTP_STRICT_TRANSPORT_SECURITY ;
+extern std::string HTTP_TE ;
+extern std::string HTTP_TRAILER ;
+extern std::string HTTP_TRANSFER_ENCODING ;
+extern std::string HTTP_UPGRADE ;
+extern std::string HTTP_USER_AGENT ;
+extern std::string HTTP_VARY ;
+extern std::string HTTP_VIA ;
+extern std::string HTTP_WARNING ;
+extern std::string HTTP_WWW_AUTHENTICATE ;
 
 #endif

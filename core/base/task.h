@@ -24,6 +24,7 @@ public:
  * 8. CompleteResponse : ²¹³ä±ØÐèµÄÏìÓ¦×Ö¶Î¡£
  * 9. ExtendCompleteResponse : ¿ÉÓÉ×ÓÀà×Ô¼º²¹³ä¡£
  */
+
 class HttpRequestTask : public Task
 {
 	channel_id_t cid;
@@ -49,11 +50,11 @@ public:
 	static bool IsValidEscapeChar(unsigned int);
 protected:
 	void BaseCheckRequest();
-	virtual void ExtendBaseCheckRequest();
-	virtual void LogicCheckRequest();
-	virtual void ConstructResponse();
+	virtual void ExtendBaseCheckRequest() {}
+	virtual void LogicCheckRequest() {}
+	virtual void ConstructResponse() {}
+	virtual void ExtendCompleteResponse() {}
 	void CompleteResponse();
-	virtual void ExtendCompleteResponse();
 public:
 	virtual void Exec() final
 	{

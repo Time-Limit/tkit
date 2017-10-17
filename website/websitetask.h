@@ -5,6 +5,9 @@
 #include <set>
 #include <string>
 
+#define except_status_code(res, sc) \
+	if(((res).status) != (sc)) { return; }
+
 class WebsiteTask : public Task
 {
 public:

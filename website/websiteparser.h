@@ -6,25 +6,15 @@
 class WebsiteParser : public HttpParser
 {
 public:
-	WebsiteParser(channel_id_t c) : HttpParser(c) {}
+	WebsiteParser() : HttpParser() {}
 	virtual Task* GenRequestTask(channel_id_t c, Request &&req) override;
-
-	static Parser* Hatcher(channel_id_t c)
-	{
-		return new WebsiteParser(c);
-	}
 };
 
-class Website_80_Port_Parser:  public HttpParser
+class Website_HTTP_PORT_Parser:  public HttpParser
 {
 public:
-	Website_80_Port_Parser(channel_id_t c) : HttpParser(c) {};
+	Website_HTTP_PORT_Parser() : HttpParser() {};
 	virtual Task* GenRequestTask(channel_id_t c, Request &&req) override;
-
-	static Parser* Hatcher(channel_id_t c)
-	{
-		return new Website_80_Port_Parser(c);
-	}
 };
 
 #endif

@@ -8,6 +8,42 @@
 #include "file.h"
 #include <iostream>
 
+Exchanger* HatchExchangerWithWebsiteParser(int fd)
+{
+	Parser *p = nullptr;
+	Exchanger *e = nullptr;
+	try
+	{
+		p = new WebsiteParser();
+		e = new Exchanger(fd, p);
+	}
+	catch(...)
+	{
+		delete p;
+		delete e;
+		Log::Trace("HatchExchangerWithWebsiteParser, failed, fd=%d\n", fd);
+	}
+	return e;
+}
+
+Exchanger* HatchExchangerWithWebsite_HTTP_PORT_Parser(int fd)
+{
+	Parser *p = nullptr;
+	Exchanger *e = nullptr;
+	try
+	{
+	        p = new Website_HTTP_PORT_Parser();
+	        e = new Exchanger(fd, p);
+	}
+	catch(...)
+	{
+	        delete p;
+	        delete e;
+	        Log::Trace("HatchExchangerWithWebsiteParser, failed, fd=%d\n", fd);
+	}
+	return e;
+}
+
 int main()
 {
 	ConfigManager::GetInstance().Reset({"website"});
@@ -20,8 +56,10 @@ int main()
 	default_http_port = website_config["http-port"].Num();
 	default_base_folder = website_config["base-folder"].Str();
 
-	assert(Acceptor::Listen("0.0.0.0", default_https_port, WebsiteParser::Hatcher));
-	assert(Acceptor::Listen("0.0.0.0", default_http_port, Website_80_Port_Parser::Hatcher));
+	//assert(Acceptor::Listen("0.0.0.0", default_https_port, WebsiteParser::Hatcher));
+	//assert(Acceptor::Listen("0.0.0.0", default_http_port, Website_80_Port_Parser::Hatcher));
+	assert(Acceptor::Listen("0.0.0.0", default_https_port, HatchExchangerWithWebsiteParser));
+	assert(Acceptor::Listen("0.0.0.0", default_http_port, HatchExchangerWithWebsite_HTTP_PORT_Parser));
 	ThreadPool::GetInstance().AddTask(new WebsiteTask());
 	
 	ThreadPool::GetInstance().Start();

@@ -9,7 +9,7 @@ void Parser::Append(const Octets &fresh_data)
 	data.insert(data.end(), fresh_data.begin(), fresh_data.size());
 }
 
-void HttpParser::Parse()
+void HttpParser::Parse(int64_t param)
 {
 	enum PARSE_STATE
 	{
@@ -165,6 +165,6 @@ void HttpParser::Parse()
 			req.args[key] = value;
 		}
 	}
-	ThreadPool::GetInstance().AddTask(GenRequestTask(cid, std::move(req)));
+	ThreadPool::GetInstance().AddTask(GenRequestTask(param, std::move(req)));
 #undef parse_state_t
 }

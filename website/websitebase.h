@@ -1,5 +1,5 @@
-#ifndef __WEBSITEBASE_H_
-#define __WEBSITEBASE_H_
+#ifndef _WEBSITEBASE_H_
+#define _WEBSITEBASE_H_
 
 #include <string>
 

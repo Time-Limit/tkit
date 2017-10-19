@@ -9,12 +9,13 @@ lib_objs = ../core/lib/lua/liblua.a
 objs = $(core_objs) $(website_objs)
 
 inl= -I../core/base -I../core/lib/lua -I../core/inl -I.
+args= -Wall
 
 website: $(objs)
-	g++ -o website $(objs) -std=c++11 -lpthread -g -ldl $(lib_objs)
+	g++ -o website $(objs) -std=c++11 -lpthread -g -ldl $(lib_objs) $(args)
 
 $(objs) : %.o:%.cpp
-	g++ -c $^ -o $@ $(inl) -std=c++11 -lpthread -g
+	g++ -c $^ -o $@ $(inl) -std=c++11 -lpthread -g $(args)
 
 clean:
 	rm -f $(objs) website

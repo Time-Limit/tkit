@@ -1,5 +1,5 @@
-#ifndef __ENUMS_H_
-#define __ENUMS_H_
+#ifndef _ENUMS_H_
+#define _ENUMS_H_
 
 #include "exptype.h"
 #include <map>

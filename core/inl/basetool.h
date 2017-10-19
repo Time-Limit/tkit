@@ -1,5 +1,5 @@
-#ifndef __BASETOOL_H_
-#define __BASETOOL_H_
+#ifndef _BASETOOL_H_
+#define _BASETOOL_H_
 
 #include <sstream>
 template<typename T>

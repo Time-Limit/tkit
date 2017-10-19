@@ -10,13 +10,10 @@ class Parser
 {
 protected:
 	Octets data;
-	channel_id_t cid;
 public:
-	Parser(channel_id_t c)
-	: cid(c)
-	{}
+	virtual ~Parser() = default;
 	void Append(const Octets &fresh_data);
-	virtual void Parse() = 0;
+	virtual void Parse(int64_t param) = 0;
 };
 
 class Task;
@@ -55,15 +52,13 @@ public:
 		Response& operator=(const Response&) = default;
 	};
 
-	HttpParser(channel_id_t c)
-	: Parser(c)
+	HttpParser()
+	: Parser()
 	{}
 
-	void Parse();
+	void Parse(int64_t param);
 
 	virtual Task* GenRequestTask(channel_id_t, Request &&req) = 0;
 };
-
-typedef Parser *(*ParserHatcher) (channel_id_t cid);
 
 #endif

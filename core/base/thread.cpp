@@ -6,6 +6,7 @@ void * Thread::Run(void * args)
 	{
 		((Task *)args)->Exec();
 	}
+	return nullptr;
 }
 
 Thread::Thread(Task *t)

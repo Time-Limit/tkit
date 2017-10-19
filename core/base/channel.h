@@ -25,34 +25,49 @@ class ChannelManager;
 
 class Channel
 {
+	friend class ChannelManager;
 public:
-
-	friend ChannelManager;
-
 	Channel(int f);
-
-	~Channel()
+	virtual ~Channel()
 	{
 		Log::Trace("Channel::~Channel, cid=%d, fd=%d, val=0x%x\n", cid, fd, this);
 		if(close(fd))
 		{
 			Log::Error("Channel::~Channel, close failed, %d(%s)\n", errno, strerror(errno));
 		}
+	}
+	void Handle(const epoll_event *event);
+	channel_id_t ID() const { return cid; }
+	bool IsClose() const { return ready_close; }
+	void Close();
+protected:
+	virtual void Send(const void *buf, size_t size) = 0;
+	virtual void OnSend() = 0;
+	virtual void Recv() = 0;
+	virtual void OnRecv() = 0;
+protected:
+	int fd;
+	channel_id_t cid;
+	bool ready_close;
+};
 
-		delete parser;
+class Exchanger : public Channel
+{
+public:
+	Exchanger(int f, Parser *p)
+	: Channel(f), parser(p), ready_send(false)
+	{
+		InitPeerName();
 	}
 
+protected:
+	void Send(const void *buf, size_t size);
+	void OnSend();
+	void Recv();
+	void OnRecv();
 
-	void PutData(const char * buf, size_t size);
-
-	void Handle(const epoll_event *event);
-	void SetParser(Parser *p) { parser = p; };
-
-	channel_id_t GetCid() const { return cid; }
-
-	void InitPeerName();
-
-private:
+protected:
+	Parser * parser;
 	Mutex olock;
 	Octets ibuff, obuff;
 	enum
@@ -61,44 +76,37 @@ private:
 	};
 	char tmp_buff[TMP_BUFF_SIZE];
 	bool ready_send;
-
-	void Close();
-	bool IsClose() { return ready_close; };
-	virtual void Send();
-	virtual void Recv();
-	virtual void OnRecv();
-
 	char ip[16] /*xxx.xxx.xxx.xxx*/;
-protected:
-	int fd;
-	channel_id_t cid;
-	Parser * parser;
-	bool ready_close;
+private:
+	void InitPeerName();
 };
 
-class Acceptor : Channel
+class Acceptor final : public Channel
 {
 public:
-	Acceptor(int f, ParserHatcher h)
-	: hatcher(h)
-	, Channel(f)
+	using ExchangerHatcher = Exchanger* (*) (int);
+public:
+	Acceptor(int f, ExchangerHatcher h)
+	: Channel(f), hatcher(h)
 	{};
 
-	static bool Listen(const char * ip, int port, ParserHatcher hatcher);
+	static bool Listen(const char * ip, int port, ExchangerHatcher hatcher);
 
-private:
-
+protected:
+	void Send(const void *, size_t) {}
+	void OnSend() {}
 	void Recv() {};
 	void OnRecv();
 
-	ParserHatcher hatcher;
+	ExchangerHatcher hatcher;
 };
 
 /*
  * as client
-class Connect() : Channel
+class Connect() : public Channel final
 {
 };
+
 */
 
 class ChannelManager
@@ -113,7 +121,7 @@ private:
 	ChannelVector ready_close_vector;
 
 public:
-	bool PutData(channel_id_t cid, const char *buf, size_t size);
+	bool Send(channel_id_t cid, const char *buf, size_t size);
 
 	void Add(Channel * c);
 	void ReadyClose(Channel * c);

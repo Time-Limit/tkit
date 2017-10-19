@@ -1,5 +1,5 @@
-#ifndef __FILE_H_
-#define __FILE_H_
+#ifndef _FILE_H_
+#define _FILE_H_
 
 #include "octets.h"
 #include <fstream>

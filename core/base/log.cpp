@@ -1,5 +1,6 @@
 #include "log.h"
 
+/*
 namespace Log
 {
 	void Error(const char * fmt, ...)
@@ -18,3 +19,4 @@ namespace Log
 		va_end(argptr);
 	}
 };
+*/

@@ -26,7 +26,7 @@ private:
 public:
 	FileManager& GetInstance() { static FileManager m; return m; }
 
-	File GetFile(const std::string &);
+	std::string GetFileData(const std::string &);
 };
 
 #endif

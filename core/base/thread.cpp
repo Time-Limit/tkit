@@ -1,21 +1,12 @@
 #include "thread.h"
 
-void * Thread::Run(void * args)
-{
-	if(args)
-	{
-		((Task *)args)->Exec();
-	}
-	return nullptr;
-}
-
 Thread::Thread(Task *t)
 	: task(t)
 {
 	int res = pthread_create(&tid, NULL, Thread::Run, (void *)task);
 	if(res)
 	{
-		Log::Trace("Thread::Thread, error=%s", strerror(errno));
+		LOG_TRACE("Thread::Thread, error=%s", strerror(errno));
 	}
 }
 
@@ -35,7 +26,7 @@ TPTask::~TPTask()
 
 void TPTask::Exec()
 {
-	Log::Trace("thread 0x%x will work.\n", pthread_self());
+	LOG_TRACE("thread 0x%lx will work.", pthread_self());
 	for(;;)
 	{
 		pthread_mutex_lock(&pool->lock);
@@ -43,7 +34,7 @@ void TPTask::Exec()
 		if(pool->quit)
 		{
 			pthread_mutex_unlock(&pool->lock);
-			Log::Trace("thread 0x%x will quit, work_count=%d.\n", pthread_self(), work_count);
+			LOG_TRACE("thread 0x%lx will quit, work_count=%zu.", pthread_self(), work_count);
 			pthread_exit(NULL) ;
 			return ;
 		}

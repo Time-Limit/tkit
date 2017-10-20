@@ -23,7 +23,7 @@ void Channel::Handle(const epoll_event *event)
 	{
 		OnSend();
 	}
-	Log::Trace("Channel::Handle, fd=%d, events=0x%x\n", fd, event->events);
+	LOG_TRACE("Channel::Handle, fd=%d, events=0x%x", fd, event->events);
 }
 
 void Channel::Close()
@@ -72,7 +72,7 @@ void Exchanger::OnSend()
 	
 	Close();
 
-	Log::Error("Exchanger::Send, errno=%d, info=%s\n", errno, strerror(errno));
+	LOG_ERROR("Exchanger::Send, errno=%d, info=%s", errno, strerror(errno));
 }
 
 void Exchanger::Recv()
@@ -99,7 +99,7 @@ void Exchanger::Recv()
 	
 	Close();
 
-	Log::Error("Exchanger::Recv, cnt=%d, errno=%d, info=%s\n", cnt, errno, strerror(errno));
+	LOG_ERROR("Exchanger::Recv, cnt=%d, errno=%d, info=%s", cnt, errno, strerror(errno));
 }
 
 void Exchanger::OnRecv()
@@ -117,12 +117,12 @@ void Exchanger::InitPeerName()
 	if(getpeername(fd, (sockaddr *)&peer, (socklen_t *)&len) == 0)
 	{
 		inet_ntop(AF_INET, &peer.sin_addr, ip, sizeof(ip));
-		Log::Trace("Exchanger::InitPeerName, ip=%s\n", ip);
+		LOG_TRACE("Exchanger::InitPeerName, ip=%s", ip);
 	}
 	else
 	{
 		memset(ip, 0, sizeof(ip));
-		Log::Error("Exchanger::InitPeerName, getpeername failed, errno=%s\n", strerror(errno));
+		LOG_ERROR("Exchanger::InitPeerName, getpeername failed, errno=%s", strerror(errno));
 	}
 }
 
@@ -138,7 +138,7 @@ void Acceptor::OnRecv()
 	
 	while((connect_fd = accept(fd, (struct sockaddr *)&accept_addr, (socklen_t *)&server_addr_len)) > 0 || errno == EINTR)
 	{
-		Log::Trace("Acceptor::Recv, connect_fd=%d\n", connect_fd);
+		LOG_TRACE("Acceptor::Recv, connect_fd=%d", connect_fd);
 		ChannelManager::GetInstance().Add(hatcher(connect_fd));
 	}
 }
@@ -147,7 +147,7 @@ bool Acceptor::Listen(const char * ip, int port, ExchangerHatcher hatcher)
 {
 	if(!hatcher || !ip)
 	{
-		Log::Error("Acceptor::Listen, invalid argument.\n");
+		LOG_ERROR("Acceptor::Listen, invalid argument.");
 		return false;
 	}
 	int sockfd = 0;
@@ -159,7 +159,7 @@ bool Acceptor::Listen(const char * ip, int port, ExchangerHatcher hatcher)
 
 	if(sockfd < 0)
 	{
-		Log::Error("Acceptor::Init, socket, error=%s\n", strerror(errno));
+		LOG_ERROR("Acceptor::Init, socket, error=%s", strerror(errno));
 		return false;
 	}
 
@@ -168,7 +168,7 @@ bool Acceptor::Listen(const char * ip, int port, ExchangerHatcher hatcher)
 	struct in_addr address;
 	if(inet_pton(AF_INET, ip, &address) == -1)
 	{
-		Log::Error("Acceptor::inet_pton, ip=%s, error=%s\n", ip, strerror(errno));
+		LOG_ERROR("Acceptor::inet_pton, ip=%s, error=%s", ip, strerror(errno));
 		return false;
 	}
 	server.sin_addr.s_addr = address.s_addr;
@@ -177,12 +177,12 @@ bool Acceptor::Listen(const char * ip, int port, ExchangerHatcher hatcher)
 
 	if(bind(sockfd, (struct sockaddr *)&server, socklen) < 0)
 	{
-		Log::Error("Acceptor::Listen, bind, error=%s\n", strerror(errno));
+		LOG_ERROR("Acceptor::Listen, bind, error=%s", strerror(errno));
 		return false ;
 	}
 
 	listen(sockfd, LISTEN_QUEUE_SIZE);
-	Log::Trace("Acceptor::Init, fd=%d\n", sockfd);	
+	LOG_TRACE("Acceptor::Init, fd=%d", sockfd);	
 	ChannelManager::GetInstance().Add(new Acceptor(sockfd, hatcher));
 
 	return true;
@@ -216,7 +216,7 @@ void ChannelManager::Add(Channel * c)
 	MutexGuard guarder(lock);
 	if(channel_map.find(c->ID()) != channel_map.end())
 	{
-		Log::Error("ChannelManager::Add, fatal error, addr=0x%x\n", c);
+		LOG_ERROR("ChannelManager::Add, fatal error, addr=0x%p", c);
 		c->Close();
 		return ;
 	}
@@ -224,7 +224,7 @@ void ChannelManager::Add(Channel * c)
 	epoll_event ev;
 	ev.events = EPOLLIN|EPOLLET|EPOLLET;
 	ev.data.ptr = c;
-	Log::Trace("ChannelManager::Add, fd=%d, addr=0x%x\n", c->fd, c);
+	LOG_TRACE("ChannelManager::Add, fd=%d, addr=0x%p", c->fd, c);
 	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, c->fd, &ev);
 }
 

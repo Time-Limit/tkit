@@ -16,7 +16,7 @@ Neter::Neter()
 	epoll_fd = epoll_create(1);
 	if(epoll_fd == -1)
 	{
-		Log::Error("Neter::Neter, error=%s\n", strerror(errno));
+		LOG_ERROR("Neter::Neter, error=%s", strerror(errno));
 		assert(false);
 	}
 }
@@ -33,7 +33,7 @@ bool Neter::Ctl(int op, int fd, struct epoll_event *event)
 {
 	if(epoll_ctl(epoll_fd, op, fd, event))
 	{
-		Log::Error("Neter::Ctl, error=%s\n", strerror(errno));
+		LOG_ERROR("Neter::Ctl, error=%s", strerror(errno));
 		return false;
 	}
 
@@ -49,7 +49,7 @@ void Neter::Wait(time_t timeout)
 
 	if(result < 0)
 	{
-		Log::Error("Neter::Wait, errno=%d, info=%s\n", errno, strerror(errno));
+		LOG_ERROR("Neter::Wait, errno=%d, info=%s", errno, strerror(errno));
 		return ;
 	}
 

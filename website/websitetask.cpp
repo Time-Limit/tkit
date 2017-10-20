@@ -25,6 +25,10 @@ void SourceReq::ConstructResponse()
 {
 	except_status_code(response, HTTP_SC_OK);
 	response.body = File(default_base_folder + request.url).GetContent();
+	if(response.body.size() == 0)
+	{
+		ResetHttpResponseStatus(response, HTTP_SC_NOT_FOUND);
+	}
 }
 
 void OperateReq::LogicCheckRequest()

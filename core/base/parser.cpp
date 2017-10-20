@@ -116,7 +116,7 @@ void HttpParser::Parse(int64_t param)
 			break;
 			default:
 			{
-				Log::Error("Parser::Parse, wrong parse state");
+				LOG_ERROR("Parser::Parse, wrong parse state");
 				assert(false);
 			}
 		};

@@ -22,7 +22,6 @@ public:
 	Thread(Task *t);
 	~Thread();
 	
-	static void * Run(void *args);
 private:
 	Task * task;
 	pthread_t tid;
@@ -92,7 +91,7 @@ private:
 	void Stop()
 	{
 		start = false;
-		Log::Trace("ThreadPool::Stop, i will quit.\n");
+		LOG_TRACE("ThreadPool::Stop, i will quit.");
 	}
 };
 

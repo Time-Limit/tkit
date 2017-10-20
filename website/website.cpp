@@ -21,7 +21,7 @@ Exchanger* HatchExchangerWithWebsiteParser(int fd)
 	{
 		delete p;
 		delete e;
-		Log::Trace("HatchExchangerWithWebsiteParser, failed, fd=%d\n", fd);
+		LOG_TRACE("HatchExchangerWithWebsiteParser, failed, fd=%d", fd);
 	}
 	return e;
 }
@@ -39,7 +39,7 @@ Exchanger* HatchExchangerWithWebsite_HTTP_PORT_Parser(int fd)
 	{
 	        delete p;
 	        delete e;
-	        Log::Trace("HatchExchangerWithWebsiteParser, failed, fd=%d\n", fd);
+	        LOG_TRACE("HatchExchangerWithWebsiteParser, failed, fd=%d", fd);
 	}
 	return e;
 }

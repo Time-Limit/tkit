@@ -19,30 +19,19 @@ class ThreadPool;
 class Thread
 {
 public:
-	Thread(Task *t);
+	using FUNC = void* (*) (void *);
+public:
+	Thread(FUNC, void *);
 	~Thread();
 	
 private:
-	Task * task;
 	pthread_t tid;
-};
-
-class TPTask : public Task
-{
-public:
-	virtual void Exec();
-
-	TPTask(ThreadPool *p);
-	~TPTask();
-private:
-	ThreadPool *pool;
-	size_t work_count;
 };
 
 class ThreadPool
 {
 public:
-	friend class TPTask;
+	friend void* HandleTask(void*);
 
 	enum THREAD_POOL_CONFIG
 	{
@@ -72,6 +61,7 @@ public:
 	}
 
 	bool IsStart() const { return start; }
+	bool IsInit() const { return init; }
 
 private:
 
@@ -82,11 +72,10 @@ private:
 	pthread_mutex_t lock;
 	pthread_cond_t cond;
 	
-	TPTask *thread_pool_task;
-
 	Task * GetTaskWithoutLock();
 
 	bool start;
+	bool init;
 
 	void Stop()
 	{

@@ -49,6 +49,7 @@ void Exchanger::Send(const void * buf, size_t size)
 
 void Exchanger::OnSend()
 {
+	static size_t per_round_send_limit = 1024*128;
 	if(IsClose()) return;
 	{
 		MutexGuard guarder(olock);	

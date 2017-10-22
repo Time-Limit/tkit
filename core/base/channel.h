@@ -55,7 +55,7 @@ class Exchanger : public Channel
 {
 public:
 	Exchanger(int f, Parser *p)
-	: Channel(f), parser(p), ready_send(false)
+	: Channel(f), parser(p), ready_send(false), cur_cursor(0)
 	{
 		InitPeerName();
 	}
@@ -65,7 +65,7 @@ protected:
 	void OnSend();
 	void Recv();
 	void OnRecv();
-
+	void RegisterSendEvent();
 protected:
 	Parser * parser;
 	Mutex olock;
@@ -77,6 +77,7 @@ protected:
 	char tmp_buff[TMP_BUFF_SIZE];
 	bool ready_send;
 	char ip[16] /*xxx.xxx.xxx.xxx*/;
+	size_t cur_cursor;
 private:
 	void InitPeerName();
 };

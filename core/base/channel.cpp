@@ -35,45 +35,48 @@ void Channel::Close()
 
 void Exchanger::Send(const void * buf, size_t size)
 {
+	static const size_t OBUFF_SIZE_LIMIT = 64*1024*1024; 
 	MutexGuard guarder(olock);
-	obuff.insert(obuff.end(), buf, size);
-	if(ready_send == false)
+	if(obuff.size() + size > OBUFF_SIZE_LIMIT)
 	{
-		ready_send = true;
-		epoll_event event;
-		event.events = EPOLLIN | EPOLLOUT | EPOLLET;
-		event.data.ptr = this;
-		Neter::GetInstance().Ctl(EPOLL_CTL_MOD, fd, &event);
+		LOG_ERROR("Exchanger::Send, size limit exceed, ip=%s, size=%lu", ip, obuff.size() + size);
+		Close();
+		return ;
 	}
+	obuff.insert(obuff.end(), buf, size);
+	RegisterSendEvent();
 }
 
 void Exchanger::OnSend()
 {
-	static size_t per_round_send_limit = 1024*128;
 	if(IsClose()) return;
+
+	MutexGuard guarder(olock);
+	ready_send = false;
+	int per_cnt = write(fd, ((char *)obuff.begin()) + cur_cursor, obuff.size() - cur_cursor);
+	if(per_cnt < 0)
 	{
-		MutexGuard guarder(olock);	
-		ready_send = false;	
-		int per_cnt = 0;
-		size_t cnt = 0;
-		do
+		if(errno == EAGAIN || errno == EINTR)
 		{
-			if((per_cnt = write(fd, ((char *)obuff.begin()) + cnt, obuff.size() - cnt)) >= 0)
-			{
-				if((cnt += per_cnt) == obuff.size())
-				{
-					obuff.clear();
-					return;
-				}
-			}
-		}while(per_cnt >= 0 || errno == EINTR || errno == EAGAIN);
-
+			//Ö»ÓÐÒ»¸öIOÏß³Ì£¬µ±Ç°channel³öÏÖÎÊÌâ¾ÍÏÈÈÃ¸ø±ðµÄchannle°É
+			RegisterSendEvent();
+			return ;
+		}
+		//³ö´íÄñ
+		LOG_ERROR("Exchanger::Send, errno=%d, info=%s", errno, strerror(errno));
 		obuff.clear();
+		cur_cursor = 0;
+		Close();
+		return ;
 	}
-	
-	Close();
-
-	LOG_ERROR("Exchanger::Send, errno=%d, info=%s", errno, strerror(errno));
+	if((size_t)per_cnt == obuff.size() - cur_cursor)
+	{
+		cur_cursor = 0;
+		obuff.clear();
+		return ;
+	}
+	cur_cursor += per_cnt;
+	RegisterSendEvent();
 }
 
 void Exchanger::Recv()
@@ -114,6 +117,7 @@ void Exchanger::OnRecv()
 void Exchanger::InitPeerName()
 {
 	struct sockaddr_in peer;
+	memset(ip, 0, sizeof(ip));
 	int len = sizeof(sockaddr_in);
 	if(getpeername(fd, (sockaddr *)&peer, (socklen_t *)&len) == 0)
 	{
@@ -122,8 +126,20 @@ void Exchanger::InitPeerName()
 	}
 	else
 	{
-		memset(ip, 0, sizeof(ip));
+		Close();
 		LOG_ERROR("Exchanger::InitPeerName, getpeername failed, errno=%s", strerror(errno));
+	}
+}
+
+void Exchanger::RegisterSendEvent()
+{
+	if(ready_send == false)
+	{
+		ready_send = true;
+		epoll_event event;
+		event.events = EPOLLIN | EPOLLOUT | EPOLLET;
+		event.data.ptr = this;
+		Neter::GetInstance().Ctl(EPOLL_CTL_MOD, fd, &event);
 	}
 }
 

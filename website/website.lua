@@ -1,5 +1,5 @@
 ConfigTable = {
-	["http-port"] = 80,
+	["http-port"] = 8080,
 	["https-port"] = 8443,
 	["base-folder"] = "./source",
 };

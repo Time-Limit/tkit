@@ -102,7 +102,7 @@ void HttpRequestTask::CompleteResponse()
 	TrySetHeader(response, HTTP_CONTENT_TYPE, GetMimeType(GetFileSuffixName(request.url)));
 	TrySetHeader(response, HTTP_CONTENT_LENGTH, tostring(response.body.size()));
 
-	// ÔÝ²»Ö§³Ö Keep-Alive Orz
+	// 暂不支持Keep-Alive Orz
 	ForceSetHeader(response, HTTP_CONNECTION, "close");
 
 	// if request's method is HEAD, then body should be cleared.

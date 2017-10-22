@@ -48,8 +48,6 @@ int main()
 {
 	ConfigManager::GetInstance().Reset({"website"});
 
-	File f("website.lua");
-
 	const Config &website_config = *ConfigManager::GetInstance().GetConfig("website");
 
 	default_https_port = website_config["https-port"].Num();

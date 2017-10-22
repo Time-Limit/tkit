@@ -58,11 +58,9 @@ void Exchanger::OnSend()
 	{
 		if(errno == EAGAIN || errno == EINTR)
 		{
-			//Ö»ÓÐÒ»¸öIOÏß³Ì£¬µ±Ç°channel³öÏÖÎÊÌâ¾ÍÏÈÈÃ¸ø±ðµÄchannle°É
 			RegisterSendEvent();
 			return ;
 		}
-		//³ö´íÄñ
 		LOG_ERROR("Exchanger::Send, errno=%d, info=%s", errno, strerror(errno));
 		obuff.clear();
 		cur_cursor = 0;

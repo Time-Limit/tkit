@@ -124,47 +124,6 @@ void HttpParser::Parse(int64_t param)
 
 	data.erase((char *)data.begin(), (char *)begin);
 
-	begin = req.url.c_str();
-	end = req.url.c_str() + req.url.size();
-
-	for(; begin < end && *begin != '?'; ++begin) ;
-
-	if(begin != end)
-	{
-		std::string key, value;
-		for(tmp = ++begin; begin < end;)
-		{
-			if(*begin == '=')
-			{
-				key = std::string(tmp, begin);
-				tmp = ++begin;
-			}
-			else if(*begin == '&')
-			{
-				value = std::string(tmp, begin);
-				tmp = ++begin;
-
-				req.args[key] = value;
-
-				key.clear();
-				value.clear();
-			}
-			else
-			{
-				++begin;
-			}
-		}
-		if(key.size())
-		{
-			value = std::string(tmp, begin);
-			req.args[key] = value;	
-		}
-		else if(tmp < begin)
-		{
-			key = std::string(tmp, begin);
-			req.args[key] = value;
-		}
-	}
 	ThreadPool::GetInstance().AddTask(GenRequestTask(param, std::move(req)));
 #undef parse_state_t
 }

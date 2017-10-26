@@ -7,6 +7,9 @@
 
 bool HttpRequestTask::IsValidEscapeChar(unsigned int c)
 {
+	if('0' <= c && c <= '9') return true;
+	if('a' <= c && c <= 'z') return true;
+	if('A' <= c && c <= 'Z') return true;
 	return (   c == ';' || c == '/' || c == '?' || c == ':' || c == '@'
 		|| c == '=' || c == '&' || c == '<' || c == '>' || c == '"'
 		|| c == '#' || c == '%' || c == '{' || c == '}' || c == '|'
@@ -77,6 +80,55 @@ void HttpRequestTask::BaseCheckRequest()
 			response.statement = "forbid \"..\" in url.";
 		}
 	}
+
+	// parser query
+	const char *begin = request.url.c_str() , *end = request.url.c_str() + request.url.size(), *tmp = NULL;
+	for(; begin < end && *begin != '?'; ++begin) ;
+
+	if(begin != end)
+	{
+		std::string key, value;
+		for(tmp = ++begin; begin < end;)
+		{
+			if(*begin == '=')
+			{
+				key = std::string(tmp, begin);
+				tmp = ++begin;
+			}
+			else if(*begin == '&')
+			{
+				value = std::string(tmp, begin);
+				tmp = ++begin;
+
+				request.args[key] = value;
+
+				key.clear();
+				value.clear();
+			}
+			else
+			{
+				++begin;
+			}
+		}
+		if(key.size())
+		{
+			value = std::string(tmp, begin);
+			request.args[key] = value;	
+		}
+		else if(tmp < begin)
+		{
+			key = std::string(tmp, begin);
+			request.args[key] = value;
+		}
+	}
+
+	//truncate url
+	size_t pos = request.url.find(';');	
+	if(pos != std::string::npos) request.url.erase(pos, request.url.size() - pos);
+	pos = request.url.find('#');	
+	if(pos != std::string::npos) request.url.erase(pos, request.url.size() - pos);
+	pos = request.url.find('?');	
+	if(pos != std::string::npos) request.url.erase(pos, request.url.size() - pos);
 
 	// complete url
 	if(request.url == "/")

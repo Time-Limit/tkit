@@ -2,6 +2,11 @@
 #define _CHANNLE_H_
 
 
+#include "octets.h"
+#include "lock.h"
+#include "log.h"
+#include "parser.h"
+#include "enums.h"
 #include <map>
 #include <vector>
 #include <stdio.h>
@@ -14,14 +19,27 @@
 #include <sys/epoll.h>
 #include <netinet/in.h>
 #include <assert.h>
-#include "octets.h"
-#include "lock.h"
-#include "exptype.h"
-#include "log.h"
 #include <functional>
-#include "parser.h"
+#include <netdb.h>  
+#include <net/if.h>  
+#include <arpa/inet.h>  
+#include <sys/ioctl.h>  
+#include <sys/types.h>  
+#include <sys/socket.h> 
 
 class ChannelManager;
+
+class SockAddr
+{
+        Octets addr;
+public: 
+        SockAddr() {}
+        template<typename T> SockAddr(const T &sa) : addr(&sa, sizeof(sa)) { }
+        SockAddr(const SockAddr &rhs) : addr(rhs.addr) { }
+        socklen_t GetLen() const { return addr.size(); }
+        template<typename T> operator T* () { addr.resize(sizeof(T)); return (T *)addr.begin(); }
+        template<typename T> operator const T* () const { return (const T *)addr.begin(); }
+};
 
 class Channel
 {
@@ -49,15 +67,24 @@ protected:
 	int fd;
 	channel_id_t cid;
 	bool ready_close;
+	bool ready_send;
+public:
+	void RegisteSendEvent();
 };
 
 class Exchanger : public Channel
 {
 public:
-	Exchanger(int f, Parser *p)
-	: Channel(f), parser(p), ready_send(false), cur_cursor(0)
+	Exchanger(int f, Parser *p, const void *data = nullptr, size_t size = 0)
+	: Channel(f), parser(p), obuff(data, size), cur_cursor(0)
 	{
 		InitPeerName();
+	}
+
+	~Exchanger()
+	{
+		delete parser;
+		parser = nullptr;
 	}
 
 protected:
@@ -65,7 +92,6 @@ protected:
 	void OnSend();
 	void Recv();
 	void OnRecv();
-	void RegisterSendEvent();
 protected:
 	Parser * parser;
 	Mutex olock;
@@ -75,40 +101,55 @@ protected:
 		TMP_BUFF_SIZE = 512,
 	};
 	char tmp_buff[TMP_BUFF_SIZE];
-	bool ready_send;
-	char ip[16] /*xxx.xxx.xxx.xxx*/;
+	char ip[IP_SIZE] /*xxx.xxx.xxx.xxx*/;
 	size_t cur_cursor;
 private:
 	void InitPeerName();
 };
 
+using ExchangerHatcher = Exchanger* (*) (int, const std::string &);
 class Acceptor final : public Channel
 {
 public:
-	using ExchangerHatcher = Exchanger* (*) (int);
 public:
-	Acceptor(int f, ExchangerHatcher h)
-	: Channel(f), hatcher(h)
+	Acceptor(int f, ExchangerHatcher h, const std::string &p)
+	: Channel(f), hatcher(h), param(p)
 	{};
 
-	static bool Listen(const char * ip, int port, ExchangerHatcher hatcher);
+	static bool Listen(const char * ip, int port, ExchangerHatcher hatcher, const std::string &param = "");
 
 protected:
 	void Send(const void *, size_t) {}
 	void OnSend() {}
-	void Recv() {};
+	void Recv() {}
 	void OnRecv();
 
 	ExchangerHatcher hatcher;
+	const std::string &param;
 };
 
-/*
- * as client
-class Connect() : public Channel final
+struct Connector
 {
-};
+	static channel_id_t Connect(const std::string &ip, int port, ExchangerHatcher hatcher, const std::string &param = "");
 
-*/
+	static bool GetIPByDomain(const char *domain, char *ip)
+	{  
+		char **pptr;  
+		struct hostent *hptr;  
+
+		hptr = gethostbyname(domain);  
+
+		for(pptr = hptr->h_addr_list ; *pptr != NULL; pptr++)  
+		{  
+			if (NULL != inet_ntop(hptr->h_addrtype, *pptr, ip, IP_SIZE) )  
+			{  
+				return 0; // 只获取第一个 ip  
+			}  
+		}  
+		LOG_ERROR("Connector::GetIPByDomain, gethostbyname error for host:%s", domain);  
+		return false;
+	}
+};
 
 class ChannelManager
 {
@@ -134,7 +175,8 @@ public:
 		static SpinLock cid_lock;
 		
 		SpinLockGuard guarder(cid_lock);
-		return cid++;
+		if(++cid == 0) cid = 1;
+		return cid;
 	}
 	static ChannelManager &GetInstance() { static ChannelManager channel_manager; return channel_manager; }
 };

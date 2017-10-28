@@ -4,6 +4,7 @@
 #include "octets.h"
 #include "exptype.h"
 #include <string>
+#include <sstream>
 #include <map>
 
 class Parser
@@ -35,6 +36,27 @@ public:
 		Request& operator=(Request&&) = default;
 		Request(const Request &) = default;
 		Request& operator=(const Request&) = default;
+
+		std::string Stream() const
+		{
+			std::stringstream streamer;
+			std::string origin_url = url;
+			if(args.size())
+			{
+				origin_url += '?';
+				for(const auto &p : headers)
+				{
+					origin_url += p.first + "=" + p.second;
+				}
+			}
+			streamer << method << " " << origin_url << " " << version << '\r' << '\n';
+			for(const auto &p : headers)
+			{
+				streamer << p.first <<  ": " << p.second << '\r' << '\n';
+			}
+
+			return streamer.str();
+		}
 	};
 
 	struct Response
@@ -50,6 +72,18 @@ public:
 		Response& operator=(Response&&) = default;
 		Response(const Response &) = default;
 		Response& operator=(const Response&) = default;
+		std::string Stream() const
+		{
+			std::stringstream streamer;
+			streamer << version <<  " " << status << " " << statement << '\r' << '\n';
+			for(const auto &p : headers)
+			{
+				streamer << p.first <<  ": " << p.second << '\r' << '\n';
+			}
+			streamer << '\r' << '\n';
+			streamer << body;
+			return streamer.str();
+		}
 	};
 
 	HttpParser()

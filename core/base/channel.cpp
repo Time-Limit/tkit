@@ -1,4 +1,5 @@
 #include "channel.h"
+#include "exptype.h"
 #include "neter.h"
 #include "thread.h"
 #include <arpa/inet.h>
@@ -7,7 +8,6 @@ Channel::Channel(int f)
 	: fd(f)
 	, cid(ChannelManager::AllocID())
 	, ready_close(false)
-	, ready_send(false)
 {
 	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
 }
@@ -44,7 +44,7 @@ void Exchanger::Send(const void * buf, size_t size)
 		return ;
 	}
 	obuff.insert(obuff.end(), buf, size);
-	RegisteSendEvent();
+	RegisterSendEvent();
 }
 
 void Exchanger::OnSend()
@@ -58,7 +58,7 @@ void Exchanger::OnSend()
 	{
 		if(errno == EAGAIN || errno == EINTR)
 		{
-			RegisteSendEvent();
+			RegisterSendEvent();
 			return ;
 		}
 		LOG_ERROR("Exchanger::Send, errno=%d, info=%s", errno, strerror(errno));
@@ -74,7 +74,7 @@ void Exchanger::OnSend()
 		return ;
 	}
 	cur_cursor += per_cnt;
-	RegisteSendEvent();
+	RegisterSendEvent();
 }
 
 void Exchanger::Recv()
@@ -129,7 +129,7 @@ void Exchanger::InitPeerName()
 	}
 }
 
-void Channel::RegisteSendEvent()
+void Exchanger::RegisterSendEvent()
 {
 	if(ready_send == false)
 	{
@@ -154,11 +154,11 @@ void Acceptor::OnRecv()
 	while((connect_fd = accept(fd, (struct sockaddr *)&accept_addr, (socklen_t *)&server_addr_len)) > 0 || errno == EINTR)
 	{
 		LOG_TRACE("Acceptor::Recv, connect_fd=%d", connect_fd);
-		ChannelManager::GetInstance().Add(hatcher(connect_fd, param));
+		ChannelManager::GetInstance().Add(hatcher(connect_fd));
 	}
 }
 
-bool Acceptor::Listen(const char * ip, int port, ExchangerHatcher hatcher, const std::string &param)
+bool Acceptor::Listen(const char * ip, int port, ExchangerHatcher hatcher)
 {
 	if(!hatcher || !ip)
 	{
@@ -198,38 +198,9 @@ bool Acceptor::Listen(const char * ip, int port, ExchangerHatcher hatcher, const
 
 	listen(sockfd, LISTEN_QUEUE_SIZE);
 	LOG_TRACE("Acceptor::Init, fd=%d", sockfd);	
-	ChannelManager::GetInstance().Add(new Acceptor(sockfd, hatcher, param));
+	ChannelManager::GetInstance().Add(new Acceptor(sockfd, hatcher));
 
 	return true;
-}
-
-channel_id_t Connector::Connect(const std::string &ip, int port, ExchangerHatcher hatcher, const std::string &param)
-{
-	SockAddr sa;
-	int s = -1, optval = -1;
-	struct sockaddr_in *addr = sa;
-	memset(addr, 0, sizeof(*addr));
-	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	addr->sin_family = AF_INET;
-	addr->sin_addr.s_addr = inet_addr(ip.c_str());
-	if (addr->sin_addr.s_addr == INADDR_NONE || port == 0)
-	{
-		LOG_ERROR("Connector::Connect, ip or port error, ip=%s, port=%d\n", ip.c_str(), port);
-		return INVALID_CHANNEL_ID;
-	}
-	addr->sin_port = htons(port);
-	
-	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
-
-	int rv = connect(s, sa, sa.GetLen());
-	if(rv)
-	{
-		return INVALID_CHANNEL_ID;
-	}
-	Exchanger * e = hatcher(s, param);
-	ChannelManager::GetInstance().Add(e);
-	e->RegisteSendEvent();
-	return e->ID();
 }
 
 bool ChannelManager::Send(channel_id_t cid, const char * buf, size_t size)

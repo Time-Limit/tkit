@@ -19,8 +19,3 @@ Task* Website_HTTP_PORT_Parser::GenRequestTask(channel_id_t c, Request &&req)
 {
 	return new RedirectReq(c, std::move(req));
 }
-
-Task* Proxy_Port_Parser::GenRequestTask(channel_id_t c, Request &&req)
-{
-	return new ProxyRequestTask(c, std::move(req));
-}

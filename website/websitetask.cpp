@@ -5,7 +5,6 @@
 #include "websitebase.h"
 #include "basetool.h"
 #include "file.h"
-#include "websiteparser.h"
 #include <stdlib.h>
 
 void WebsiteTask::Exec()
@@ -68,63 +67,4 @@ void RedirectReq::ConstructResponse()
 	{
 		ForceSetHeader(response, HTTP_LOCATION, "http://" + host.substr(0, pos) + ':' + tostring(default_https_port));
 	}
-}
-
-void ProxyRequestTask::Exec()
-{
-	char ip[IP_SIZE] = {0};
-	HttpParser::Response response;
-	do
-	{
-		if(!Connector::GetIPByDomain(req.headers[HTTP_HOST].c_str(), ip))
-		{
-			LOG_ERROR("ProxyRequestTask::Exec, get ip failed, host=%s", req.headers[HTTP_HOST].c_str());
-			ResetHttpResponseStatus(response, HTTP_SC_BAD_REQUEST);
-			break;
-		}
-		
-		std::stringstream streamer;
-		streamer << origin_cid;
-		streamer << req.Stream();
-		channel_id_t goal = Connector::Connect(ip, 80,ProxyConnectHatcher, streamer.str());
-		if(goal == INVALID_CHANNEL_ID)
-		{
-			LOG_ERROR("ProxyRequestTask::Exec, connect failed, host=%s, ip=%s", req.headers[HTTP_HOST].c_str(), ip);
-			ResetHttpResponseStatus(response, HTTP_SC_BAD_REQUEST);
-			break;
-		}
-	}while(0);
-
-	if(response.status == HTTP_SC_OK)
-	{
-		return ;
-	}
-
-	std::string str = response.Stream();
-	ChannelManager::GetInstance().Send(origin_cid, str.c_str(), str.size());
-}
-
-Exchanger * ProxyConnectHatcher(int fd, const std::string &param)
-{
-	Parser *p = nullptr;
-	Exchanger *e = nullptr;
-	try
-	{
-		std::stringstream streamer(param);
-		channel_id_t origin_id = INVALID_CHANNEL_ID;
-		streamer >> origin_id;
-		std::string request;
-		streamer >> request;
-	        p = new Proxy_Connect_Parser(origin_id);
-	        e = new Exchanger(fd, p, request.c_str(), request.size());
-	}       
-	catch(...)
-	{
-	        delete p;
-	        delete e;               
-	        p = nullptr;             
-	        e = nullptr;      
-	        LOG_TRACE("HatchExchangerWithWebsiteParser, failed, fd=%d", fd);
-	}       
-	return e;   
 }

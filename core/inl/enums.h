@@ -4,9 +4,6 @@
 #include "exptype.h"
 #include <map>
 
-const channel_id_t INVALID_CHANNEL_ID = 0;
-const unsigned char IP_SIZE = 16;
-
 enum HTTP_STATUS_CODE
 {
 	HTTP_SC_CONTINUE			=	100,

@@ -168,6 +168,13 @@ void HttpRequestTask::CompleteResponse()
 
 void HttpResponseTask::Exec()
 {
-	std::string str = response.Stream();
-	ChannelManager::GetInstance().Send(cid, str.c_str(), str.size());
+	res_stream_t streamer;
+	streamer << response.version <<  " " << response.status << " " << response.statement << '\r' << '\n';
+	for(const auto &p : response.headers)
+	{
+		streamer << p.first <<  ": " << p.second << '\r' << '\n';
+	}
+	streamer << '\r' << '\n';
+	streamer << response.body;
+	ChannelManager::GetInstance().Send(cid, streamer.str().c_str(), streamer.str().size());
 }

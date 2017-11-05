@@ -4,7 +4,6 @@
 #include "task.h"
 #include <set>
 #include <string>
-#include "channel.h"
 
 #define except_status_code(res, sc) \
 	if(((res).status) != (sc)) { return; }
@@ -70,24 +69,6 @@ protected:
 	virtual void LogicCheckRequest() override;
 	virtual void ConstructResponse() override;
 	//virtual void ExtendCompleteResponse() override;
-};
-
-Exchanger * ProxyConnectHatcher(int fd, const std::string &param);
-
-class ProxyRequestTask : public Task
-{
-public:
-	ProxyRequestTask(channel_id_t c, HttpParser::Request &&r)
-	: origin_cid(c), req(std::move(r)) {}
-
-	ProxyRequestTask(channel_id_t c, const HttpParser::Request &r)
-	: origin_cid(c), req(r) {}
-
-	void Exec() override;
-
-private:
-	channel_id_t origin_cid;
-	HttpParser::Request req;
 };
 
 #endif

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<style>
+#input{
+width:48%;
+height:100%;
+position:fixed;
+float:right;
+top:0;
+right:0;
+margin:0;
+border:0;
+}
+
+#outputpreview{
+width:48%;
+height:100%;
+position:absolute;
+float:left;
+left:0;
+top:0;
+margin:0;
+border:0;
+font-size:16px;
+}
+</style>
+
+<script type="text/javascript" src="/js/marked/marked.js"></script>
+<script type="text/javascript" src="/js/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/javascript" src="/js/ace/build/src/ace.js"></script>
+<link href="/css/darkdown.css" rel="stylesheet"></link>
+
+<script>
+marked.setOptions({
+renderer: new marked.Renderer(),
+gfm: true,
+tables: true,
+breaks: false,
+pedantic: false,
+sanitize: false, // IMPORTANT, because we do MathJax before markdown,
+//            however we do escaping in 'CreatePreview'.
+smartLists: true,
+smartypants: false
+});
+</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+showProcessingMessages: false,
+tex2jax: { inlineMath: [['$','$'],['\\(','\\)']] },
+TeX: { equationNumbers: {autoNumber: "AMS"} }
+});
+</script>
+
+<script>
+var Preview = {
+delay: 0,        // delay after keystroke before updating
+
+       preview: null,     // filled in by Init below
+       buffer: null,      // filled in by Init below
+
+       timeout: null,     // store setTimout id
+       mjRunning: false,  // true when MathJax is processing
+       oldText: null,     // used to check if an update is needed
+
+       Init: function () {
+	       this.preview = document.getElementById("outputpreview");
+	       this.buffer = document.getElementById("outputbuffer");
+	       this.ace = ace.edit("input");
+	       this.ace.getSession().setMode("ace/mode/markdown");
+	       this.ace.getSession().on('change', function(e) {
+			       //Preview.preview.innerHTML = Preview.ace.getValue();
+			       Preview.buffer.innerHTML = Preview.ace.getValue();
+			       Preview.Update();
+			       });
+       },
+
+Update: function () {
+		if (this.timeout) {clearTimeout(this.timeout)}
+		this.timeout = setTimeout(this.callback,this.delay);
+	},
+
+CreatePreview: function () {
+		       Preview.timeout = null;
+		       if (this.mjRunning) return;
+		       var text = this.ace.getValue();
+		       if (text === this.oldtext) return;
+		       text = this.Escape(text);
+		       this.buffer.innerHTML = this.oldtext = text;
+		       this.mjRunning = true;
+		       MathJax.Hub.Queue(
+				       ["Typeset",MathJax.Hub,this.buffer],
+				       ["PreviewDone",this],
+				       ["resetEquationNumbers", MathJax.InputJax.TeX]
+				       );
+	       },
+
+PreviewDone: function () {
+		     this.mjRunning = false;
+		     this.preview.innerHTML = marked(this.UnEscape(this.buffer.innerHTML));
+	     },
+
+UnEscape: function (html) {
+		return html.replace(/^&gt;/mg, '>');
+	  },
+
+Escape: function (html, encode) {
+		return html
+			.replace(!encode ? /&(?!#?\w+;)/g : /&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	},
+
+};
+
+Preview.callback = MathJax.Callback(["CreatePreview",Preview]);
+Preview.callback.autoReset = true;
+</script>
+</head>
+
+<body>
+<div id="outputpreview"></div>
+<div id="input"></div>
+<div id="outputbuffer" style="display:none; position:absolute; float:bottom; bottom:0; right: 0"></div>
+
+<script>
+Preview.Init();
+Preview.Update();
+</script>
+
+</body>
+</html>

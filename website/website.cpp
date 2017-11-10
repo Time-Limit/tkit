@@ -6,6 +6,7 @@
 #include "channel.h"
 #include "config.h"
 #include "file.h"
+#include "md5.h"
 #include <iostream>
 
 Exchanger* HatchExchangerWithWebsiteParser(int fd)
@@ -44,8 +45,10 @@ Exchanger* HatchExchangerWithWebsite_HTTP_PORT_Parser(int fd)
 	return e;
 }
 
-int main()
+int main(int argc, char **argv)
 {
+	LOG_TRACE("%s, %s", argv[1], md5(argv[1]).c_str());
+	return 0;
 	ConfigManager::GetInstance().Reset({"website"});
 
 	const Config &website_config = *ConfigManager::GetInstance().GetConfig("website");

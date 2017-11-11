@@ -2,19 +2,27 @@
 #define _FILE_H_
 
 #include "octets.h"
-#include <fstream>
+#include <fcntl.h>
 #include <set>
+#include <string>
 
 class File
 {
 	friend class FileManager;
 private:
 	std::string name;
+	int flag;
+	mode_t mode;
 	std::string content;
+	int fd;
+	int error_number;
 public:
-	File(const std::string &);
+	File(const std::string &_name, int _flag = O_RDONLY, mode_t _mode = 0, bool readall = true);
+	~File();
 
-	std::string GetContent() { return content; }
+	void Read();
+
+	const std::string& GetContent() const { return content; }
 };
 
 class FileManager

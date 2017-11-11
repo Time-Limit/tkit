@@ -100,7 +100,9 @@ CreatePreview: function () {
 
 PreviewDone: function () {
 		     this.mjRunning = false;
+		     console.log(this.UnEscape(this.buffer.innerHTML));
 		     this.preview.innerHTML = marked(this.UnEscape(this.buffer.innerHTML));
+		     console.log(this.preview.innerHTML);
 	     },
 
 UnEscape: function (html) {

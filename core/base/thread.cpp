@@ -1,9 +1,16 @@
 #include "thread.h"
 
-void* HandleTask(void *p)
+void* Thread::Run(void *task)
 {
-	ThreadPool *pool = (ThreadPool *)p;
-	while(!pool->init)
+	if(task) ((Task*)task)->Exec();
+	delete (Task *)task;
+	return NULL;
+};
+
+void ThreadTask::Exec()
+{
+	ThreadPool *pool = &ThreadPool::GetInstance();
+	while(!pool->IsInit())
 	{
 		sleep(1);
 	}
@@ -11,22 +18,22 @@ void* HandleTask(void *p)
 	LOG_TRACE("thread 0x%lx will work.", pthread_self());
 	for(;;)
 	{
-		pthread_mutex_lock(&pool->lock);
+		pool->InnerLock(type);
 
-		if(pool->quit)
+		if(pool->IsQuit())
 		{
-			pthread_mutex_unlock(&pool->lock);
+			pool->InnerUnlock(type);
 			LOG_TRACE("thread 0x%lx will quit, work_count=%zu.", pthread_self(), work_count);
-			pthread_exit(NULL) ;
-			return nullptr;
+			pthread_exit(NULL);
+			return ;
 		}
 
-		if(pool->quit == false && pool->tasks.empty())
+		if(pool->IsQuit() == false && pool->InnerIsEmpty(type))
 		{
-			pthread_cond_wait(&pool->cond, &pool->lock);
+			pool->InnerWait(type);
 		}
 		Task *task = pool->GetTaskWithoutLock();
-		pthread_mutex_unlock(&pool->lock);
+		pool->InnerUnlock(type);
 		if(task)
 		{
 			task->Exec();
@@ -34,12 +41,12 @@ void* HandleTask(void *p)
 			delete task;
 		}
 	}
-	return nullptr;
+	return ;
 }
 
-Thread::Thread(FUNC f, void * p)
+Thread::Thread(Task *task)
 {
-	int res = pthread_create(&tid, NULL, f, p);
+	int res = pthread_create(&tid, NULL, Run, (void *)task);
 	if(res)
 	{
 		LOG_TRACE("Thread::Thread, error=%s", strerror(errno));
@@ -51,24 +58,9 @@ Thread::~Thread()
 	pthread_join(tid, NULL);
 }
 
-ThreadPool::ThreadPool()
-	: quit(false)
-	, start(false)
-	, init(false)
-{
-	lock = PTHREAD_MUTEX_INITIALIZER;
-	cond = PTHREAD_COND_INITIALIZER;
-
-	for(unsigned int i = 0; i < TP_MAX_SIZE; ++i)
-	{
-		pool[i] = new Thread(HandleTask, this);
-	}
-
-	init = true;
-}
-
 ThreadPool::~ThreadPool()
 {
+	/*
 	pthread_mutex_lock(&lock);	
 	quit = true;
 	pthread_mutex_unlock(&lock);
@@ -83,19 +75,28 @@ ThreadPool::~ThreadPool()
 
 	pthread_mutex_destroy(&lock);
 	pthread_cond_destroy(&cond);
+	*/
+}
+
+ThreadPool::InnerPool::~InnerPool()
+{
 }
 
 Task *ThreadPool::GetTaskWithoutLock()
 {
+	return NULL;
+	/*
 	if(tasks.empty()) {return NULL;}
 
 	Task *tmp = tasks.front();
 	tasks.pop();
 	return tmp;
+	*/
 }
 
 bool ThreadPool::AddTask(Task *task)
 {
+	/*
 	if(!task) { return false; }
 	
 	bool need_notify = false;
@@ -115,6 +116,7 @@ bool ThreadPool::AddTask(Task *task)
 	if(!start) { return true; }
 	if(need_notify) pthread_cond_signal(&cond);
 
+	*/
 	return true;
 }
 
@@ -123,10 +125,32 @@ void ThreadPool::Start()
 	assert(start == false);
 	start = true;
 
+	/*
 	pthread_cond_signal(&cond);	
 	signal(SIGINT, ThreadPool::StopFunc);	
 	while(start)
 	{
 		sleep(1);
 	}
+	*/
+}
+
+ThreadPool::ThreadPool()
+: quit(false)
+, start(false)
+, init(false)
+, inner_pools({NORMAL_THREAD_COUNT})
+{}
+
+ThreadPool::InnerPool::InnerPool(thread_count_t count)
+: thread_count(count)
+, lock(PTHREAD_MUTEX_INITIALIZER)
+, cond(PTHREAD_COND_INITIALIZER)
+{
+	/*
+	for(thread_count_t i = 0; i < thread_count; ++i)
+	{
+		pool[i] = new Thread(ThreadTask());
+	}
+	*/
 }

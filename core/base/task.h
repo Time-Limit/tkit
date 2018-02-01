@@ -4,29 +4,24 @@
 #include "parser.h"
 #include <sstream>
 
-class Connector;
-
 class Task
 {
 public:
 	virtual void Exec() = 0;
 	virtual ~Task() = default;
-public:
-
 };
 
-/*
- * HttpRequestTask Ê¹ÓÃËµÃ÷
- * 1. Ê×ÏÈ£¬ÔÚÀàÖ´ÐÐ³õÊ¼»¯Ê±£¬ÒÑ¾­ÓÐÁË¿Í»§¶ËµÄÇëÇó±¨ÎÄ¡£µ«ÊÇºÜ´Ö²Ú£¬²¢Ã»ÓÐ¶Ô±¨ÎÄ½øÐÐ¼ì²é¡£
- * 2. void Exec() { ... } ÖÐµ÷ÓÃÁË¸ÃÀàµÄÒ»Ð©º¯Êý¡£
- * 3. ÕâÐ©º¯Êý·Ö±ðÊÇ, BaseCheckRequest, ExtendBaseCheckRequest, LogicCheckRequest, ConsturctResponse, CompleteResponse, ExtendComplexteResponse¡£
- * 4. BaseCheckRequest : ¹ýÂË²»Ö§³ÖµÄÌØÐÔ£¬¼ì²éÊÇ·ñÓÐ»ù±¾µÄÇëÇóÍ·£¬¼ì²éurlÊÇ·ñºÏ·¨£¬¹¹ÔìÏìÓ¦ÐÐ¡£
- * 5. ExtendBaseCheckRequest : ¿ÉÓÉ×ÓÀà×Ô¼º²¹³ä¡£
- * 6. LogicCheckRequest: ¼ì²é¸ÃÇëÇóµÄÂß¼­ÊÇ·ñÕýÈ·¡£
- * 7. ConstructResponse: ¹¹ÔìÏìÓ¦±¨ÎÄ¡£
- * 8. CompleteResponse : ²¹³ä±ØÐèµÄÏìÓ¦×Ö¶Î¡£
- * 9. ExtendCompleteResponse : ¿ÉÓÉ×ÓÀà×Ô¼º²¹³ä¡£
- */
+class LogicTask : public Task
+{
+public:
+	void Exec() = 0;
+public:
+	enum TASK_TYPE
+	{
+		TASK_TYPE_NORMAL,
+		TASK_TYPE_COUNT,
+	};
+};
 
 class HttpRequestTask : public Task
 {
@@ -71,11 +66,6 @@ public:
 		CompleteResponse();
 	}
 };
-
-/*
- * HttpResponseTask Ê¹ÓÃËµÃ÷
- * ¸ÃÀà²¢Ã»ÓÐ×ö¹ý¶àµÄÊÂÇé, Ö»ÊÇ½«ÏìÓ¦±¨ÎÄÁ÷»¯²¢·ÅÈë·¢ËÍ¶ÓÁÐ¡£
- */
 
 class HttpResponseTask : public Task
 {

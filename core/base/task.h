@@ -14,16 +14,27 @@ public:
 class LogicTask : public Task
 {
 public:
-	void Exec() = 0;
-public:
 	enum TASK_TYPE
 	{
 		TASK_TYPE_NORMAL,
 		TASK_TYPE_COUNT,
 	};
+	
+	LogicTask(TASK_TYPE t) : type(t) {}
+	void Exec() = 0;
+
+	TASK_TYPE GetType() const { return type; }
+private:
+	TASK_TYPE type;
 };
 
-class HttpRequestTask : public Task
+class NormalTask : public LogicTask
+{
+public:
+	NormalTask() : LogicTask(LogicTask::TASK_TYPE_NORMAL) {}
+};
+
+class HttpRequestTask : public NormalTask
 {
 	channel_id_t cid;
 protected:
@@ -67,7 +78,7 @@ public:
 	}
 };
 
-class HttpResponseTask : public Task
+class HttpResponseTask : public NormalTask
 {
 public:
 	using res_data_t = std::string;

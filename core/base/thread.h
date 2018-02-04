@@ -41,21 +41,22 @@ class ThreadPool
 {
 public:
 
-	enum INNER_POOL_THREAD_COUNT
-	{
-		NORMAL_THREAD_COUNT = 4,
-	};
-
 	class InnerPool
 	{
 		friend class ThreadPool;
 	public:
+		
+		enum INNER_POOL_THREAD_COUNT
+		{
+			NORMAL_THREAD_COUNT = 4,
+		};
+
 		typedef unsigned char thread_count_t;
 		typedef unsigned int  thread_id_t;
 		typedef std::map<thread_id_t, Thread *> Pool;
-		typedef std::queue<Task *> Queue;
+		typedef std::queue<LogicTask *> Queue;
 
-		InnerPool(thread_count_t count);
+		InnerPool(LogicTask::TASK_TYPE t);
 		~InnerPool();
 
 		void Lock() { pthread_mutex_lock(&lock); }
@@ -65,15 +66,34 @@ public:
 		void Notify() { pthread_cond_signal(&cond); } 
 		void NotifyAll() { pthread_cond_broadcast(&cond); }
 
-		bool IsEmpty() { return queue.empty(); }
+		bool IsEmpty() { return tasks.empty(); }
+
+		bool AddTask(LogicTask *task);
+		LogicTask* GetTaskWithoutLock();
+
+		static thread_count_t GetThreadCount(LogicTask::TASK_TYPE t)
+		{
+			switch(t)
+			{
+				case LogicTask::TASK_TYPE_NORMAL: return NORMAL_THREAD_COUNT; break;
+				default: break;
+			}
+
+			return 0;
+		}
+
 	private:
+
+		LogicTask::TASK_TYPE type;
 
 		thread_count_t thread_count;
 
 		pthread_mutex_t lock;
 		pthread_cond_t cond;
 
-		Queue queue;
+		Queue tasks;
+
+		Pool pool;
 	};
 
 	typedef std::array<InnerPool, LogicTask::TASK_TYPE_COUNT> InnerPoolArray;
@@ -83,9 +103,6 @@ public:
 		static ThreadPool instance;
 		return instance;
 	}
-
-	bool AddTask(Task *task);
-	Task* GetTaskWithoutLock();
 
 	void Start();
 	bool IsStart() const { return start; }
@@ -100,6 +117,19 @@ public:
 	void InnerNotifyAll(LogicTask::TASK_TYPE type) { inner_pools[type].NotifyAll(); }
 	bool InnerIsEmpty(LogicTask::TASK_TYPE type) { return inner_pools[type].IsEmpty(); }
 
+	bool AddTask(LogicTask *task) { return inner_pools[task->GetType()].AddTask(task); }
+	LogicTask* GetTaskWithoutLock(LogicTask::TASK_TYPE type) { return inner_pools[type].GetTaskWithoutLock(); }
+
+	static void StopFunc(int)
+	{
+		ThreadPool::GetInstance().Stop();
+	}
+
+	void Stop()
+	{
+		start = false;
+		LOG_TRACE("ThreadPool::Stop, i will quit.");
+	}
 private:
 	bool quit;
 	bool start;
@@ -139,11 +169,6 @@ public:
 		return instance;
 	}
 	
-	static void StopFunc(int)
-	{
-		ThreadPool::GetInstance().Stop();
-	}
-
 	bool IsStart() const { return start; }
 	bool IsInit() const { return init; }
 
@@ -161,11 +186,6 @@ private:
 	bool start;
 	bool init;
 
-	void Stop()
-	{
-		start = false;
-		LOG_TRACE("ThreadPool::Stop, i will quit.");
-	}
 };
 */
 

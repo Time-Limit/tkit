@@ -2,7 +2,7 @@
 #include "websitetask.h"
 #include "log.h"
 
-Task* WebsiteParser::GenRequestTask(channel_id_t c, Request &&req)
+LogicTask* WebsiteParser::GenRequestTask(channel_id_t c, Request &&req)
 {
 	LOG_TRACE("WebsiteParser::GenRequestTask, url=%s", req.url.c_str());
 	if(strncmp(req.url.c_str(), "/operate", 7) == 0)
@@ -15,7 +15,7 @@ Task* WebsiteParser::GenRequestTask(channel_id_t c, Request &&req)
 	}
 }
 
-Task* Website_HTTP_PORT_Parser::GenRequestTask(channel_id_t c, Request &&req)
+LogicTask* Website_HTTP_PORT_Parser::GenRequestTask(channel_id_t c, Request &&req)
 {
 	return new RedirectReq(c, std::move(req));
 }

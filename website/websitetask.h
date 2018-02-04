@@ -8,7 +8,7 @@
 #define except_status_code(res, sc) \
 	if(((res).status) != (sc)) { return; }
 
-class WebsiteTask : public Task
+class WebsiteTask : public NormalTask
 {
 public:
 	virtual void Exec();

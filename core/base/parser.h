@@ -16,7 +16,7 @@ public:
 	virtual void Parse(int64_t param) = 0;
 };
 
-class Task;
+class LogicTask;
 
 class HttpParser : public Parser
 {
@@ -58,7 +58,7 @@ public:
 
 	void Parse(int64_t param);
 
-	virtual Task* GenRequestTask(channel_id_t, Request &&req) = 0;
+	virtual LogicTask* GenRequestTask(channel_id_t, Request &&req) = 0;
 };
 
 #endif

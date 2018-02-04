@@ -7,14 +7,14 @@ class WebsiteParser : public HttpParser
 {
 public:
 	WebsiteParser() : HttpParser() {}
-	virtual Task* GenRequestTask(channel_id_t c, Request &&req) override;
+	virtual LogicTask* GenRequestTask(channel_id_t c, Request &&req) override;
 };
 
 class Website_HTTP_PORT_Parser:  public HttpParser
 {
 public:
 	Website_HTTP_PORT_Parser() : HttpParser() {};
-	virtual Task* GenRequestTask(channel_id_t c, Request &&req) override;
+	virtual LogicTask* GenRequestTask(channel_id_t c, Request &&req) override;
 };
 
 #endif

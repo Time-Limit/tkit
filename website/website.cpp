@@ -55,8 +55,6 @@ int main(int argc, char **argv)
 	default_http_port = website_config["http-port"].Num();
 	default_base_folder = website_config["base-folder"].Str();
 
-	//assert(Acceptor::Listen("0.0.0.0", default_https_port, WebsiteParser::Hatcher));
-	//assert(Acceptor::Listen("0.0.0.0", default_http_port, Website_80_Port_Parser::Hatcher));
 	assert(Acceptor::Listen("0.0.0.0", default_https_port, HatchExchangerWithWebsiteParser));
 	assert(Acceptor::Listen("0.0.0.0", default_http_port, HatchExchangerWithWebsite_HTTP_PORT_Parser));
 	ThreadPool::GetInstance().AddTask(new WebsiteTask());

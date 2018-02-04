@@ -32,7 +32,7 @@ void ThreadTask::Exec()
 		{
 			pool->InnerWait(type);
 		}
-		Task *task = pool->GetTaskWithoutLock();
+		Task *task = pool->GetTaskWithoutLock(type);
 		pool->InnerUnlock(type);
 		if(task)
 		{
@@ -60,50 +60,43 @@ Thread::~Thread()
 
 ThreadPool::~ThreadPool()
 {
-	/*
-	pthread_mutex_lock(&lock);	
 	quit = true;
-	pthread_mutex_unlock(&lock);
-	pthread_cond_broadcast(&cond);
-
-	for(unsigned int i = 0; i < TP_MAX_SIZE; ++i)
-	{
-		delete pool[i];
-		pool[i] = NULL;
-	}
-	pool.clear();
-
-	pthread_mutex_destroy(&lock);
-	pthread_cond_destroy(&cond);
-	*/
 }
 
 ThreadPool::InnerPool::~InnerPool()
 {
+	pthread_cond_broadcast(&cond);
+
+	for(auto &it : pool)
+	{
+		delete it.second;
+		it.second = NULL;
+	}
+
+	pool.clear();
+
+	pthread_mutex_destroy(&lock);
+	pthread_cond_destroy(&cond);
 }
 
-Task *ThreadPool::GetTaskWithoutLock()
+LogicTask *ThreadPool::InnerPool::GetTaskWithoutLock()
 {
-	return NULL;
-	/*
 	if(tasks.empty()) {return NULL;}
 
-	Task *tmp = tasks.front();
+	LogicTask *tmp = tasks.front();
 	tasks.pop();
 	return tmp;
-	*/
 }
 
-bool ThreadPool::AddTask(Task *task)
+bool ThreadPool::InnerPool::AddTask(LogicTask *task)
 {
-	/*
 	if(!task) { return false; }
 	
 	bool need_notify = false;
 
 	pthread_mutex_lock(&lock);
 
-	if(quit)
+	if(ThreadPool::GetInstance().IsQuit())
 	{
 		pthread_mutex_unlock(&lock);
 		return false;
@@ -113,10 +106,9 @@ bool ThreadPool::AddTask(Task *task)
 	
 	pthread_mutex_unlock(&lock);
 
-	if(!start) { return true; }
+	if(!ThreadPool::GetInstance().IsStart()) { return true; }
 	if(need_notify) pthread_cond_signal(&cond);
 
-	*/
 	return true;
 }
 
@@ -125,32 +117,36 @@ void ThreadPool::Start()
 	assert(start == false);
 	start = true;
 
-	/*
-	pthread_cond_signal(&cond);	
+	for(auto &it : inner_pools)
+	{
+		it.Notify();
+	}
+
 	signal(SIGINT, ThreadPool::StopFunc);	
+
+	init = true;
+
 	while(start)
 	{
 		sleep(1);
 	}
-	*/
 }
 
 ThreadPool::ThreadPool()
 : quit(false)
 , start(false)
 , init(false)
-, inner_pools({NORMAL_THREAD_COUNT})
+, inner_pools({LogicTask::TASK_TYPE_NORMAL})
 {}
 
-ThreadPool::InnerPool::InnerPool(thread_count_t count)
-: thread_count(count)
+ThreadPool::InnerPool::InnerPool(LogicTask::TASK_TYPE t)
+: type(t)
+, thread_count(GetThreadCount(t))
 , lock(PTHREAD_MUTEX_INITIALIZER)
 , cond(PTHREAD_COND_INITIALIZER)
 {
-	/*
 	for(thread_count_t i = 0; i < thread_count; ++i)
 	{
-		pool[i] = new Thread(ThreadTask());
+		pool[i] = new Thread(new ThreadTask(type));
 	}
-	*/
 }

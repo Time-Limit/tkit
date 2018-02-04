@@ -1,10 +1,7 @@
 #### 本站支持的部分markdown语法示例
 
->	引用
->
+> 	引用
 >	This a simple markdown interpreter.
-
-
 
 一些特殊字符 <, >, "quote"
 
@@ -14,9 +11,6 @@
 		puts("Hello World!");
 		return 0;
 	}
-
-$$\sum_{i=1}^n a_i=0$$
-$$f(x)=x^{x^{x^{x^x}}}$$
 
 * first
 	1. f-first

@@ -4,7 +4,90 @@
 	<meta charset="utf-8">
 	<meta name="keywords" content="TEST HTML CSS JAVASCRIPT">
 	<base target="_blank" />
-	<link type="text/css" rel="stylesheet" href="/css/all-style.css"/>
+	<!--<link type="text/css" rel="stylesheet" href="/css/all-style.css"/>-->
+	<script type="text/javascript" src="/js/marked/marked.js"></script>
+	<script type="text/javascript" src="/js/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+	<link href="/css/darkdown.css" rel="stylesheet"></link>
+
+	<script>
+	marked.setOptions({
+	renderer: new marked.Renderer(),
+	gfm: true,
+	tables: true,
+	breaks: false,
+	pedantic: false,
+	sanitize: false, // IMPORTANT, because we do MathJax before markdown,
+	//            however we do escaping in 'CreatePreview'.
+	smartLists: true,
+	smartypants: false
+	});
+	</script>
+
+	<script type="text/x-mathjax-config">
+	MathJax.Hub.Config({
+	showProcessingMessages: false,
+	tex2jax: { inlineMath: [['$','$'],['\\(','\\)']] },
+	TeX: { equationNumbers: {autoNumber: "AMS"} }
+	});
+	</script>
+
+	<script>
+	var Preview = {
+	delay: 0,        // delay after keystroke before updating
+
+	       markdown: null,
+	       buffer: null,      // filled in by Init below
+
+	       timeout: null,     // store setTimout id
+	       mjRunning: false,  // true when MathJax is processing
+	       oldText: null,     // used to check if an update is needed
+
+	       Init: function () {
+		       this.buffer = document.getElementById("content");
+	       },
+
+	Update: function () {
+			if (this.timeout) {clearTimeout(this.timeout)}
+			this.timeout = setTimeout(this.callback,this.delay);
+		},
+
+	CreatePreview: function () {
+			       Preview.timeout = null;
+			       if (this.mjRunning) return;
+			       this.buffer.innerHTML = this.Escape(this.markdown);
+			       this.mjRunning = true;
+			       MathJax.Hub.Queue(
+					       ["Typeset",MathJax.Hub,this.buffer],
+					       ["PreviewDone",this],
+					       ["resetEquationNumbers", MathJax.InputJax.TeX]
+					       );
+		       },
+
+	PreviewDone: function () {
+			     this.mjRunning = false;
+			     this.buffer.innerHTML = marked(this.UnEscape(this.buffer.innerHTML));
+		     },
+
+	UnEscape: function (html) {
+			return html
+				.replace(/&gt;/g, '>')
+				.replace(/&lt;/g, '<');
+		  },
+
+	Escape: function (html, encode) {
+			return html
+				.replace(!encode ? /&(?!#?\w+;)/g : /&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#39;');
+		},
+
+	};
+
+	Preview.callback = MathJax.Callback(["CreatePreview",Preview]);
+	Preview.callback.autoReset = true;
+	</script>
 </head>
 
 <style type="text/css">
@@ -88,6 +171,7 @@
 </div>
 </body>
 <script>
+Preview.Init();
 window.onload=loadfinish;
 </script>
 </html>

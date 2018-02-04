@@ -76,6 +76,7 @@ void File::Read()
 	}
 
 	content = std::string(buf, sum);
+	LOG_TRACE("%s", content.c_str());
 	delete [] buf;
 }
 

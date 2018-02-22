@@ -1,8 +1,9 @@
 #ifndef _TASK_H_
 #define _TASK_H_
 
-#include "parser.h"
 #include <sstream>
+#include "session.h"
+#include "protocol.h"
 
 class Task
 {
@@ -34,19 +35,35 @@ public:
 	NormalTask() : LogicTask(LogicTask::TASK_TYPE_NORMAL) {}
 };
 
+class HandleNetProtocolTask : public NormalTask
+{
+private:
+	SessionManager *manager;
+	session_id_t sid;
+	Protocol *protocol;
+public:
+	void Exec();
+
+	HandleNetProtocolTask(SessionManager *_manager, session_id_t _sid, Protocol *_protocol)
+	: manager(_manager)
+	, sid(_sid)
+	, protocol(_protocol)
+	{}
+};
+
 class HttpRequestTask : public NormalTask
 {
 	channel_id_t cid;
 protected:
-	HttpParser::Request request;
-	HttpParser::Response response;
+	HttpRequest request;
+	HttpResponse response;
 public:
-	HttpRequestTask(channel_id_t c, const HttpParser::Request &req)
+	HttpRequestTask(channel_id_t c, const HttpRequest &req)
 	: cid(c)
 	, request(req)
 	{}
 
-	HttpRequestTask(channel_id_t c, HttpParser::Request &&req)
+	HttpRequestTask(channel_id_t c, HttpRequest &&req)
 	: cid(c)
 	, request(std::move(req))
 	{}
@@ -85,14 +102,14 @@ public:
 	using res_stream_t = std::stringstream;
 private:
 	channel_id_t cid;
-	HttpParser::Response response;
+	HttpResponse response;
 public:
-	HttpResponseTask(channel_id_t c, const HttpParser::Response &res)
+	HttpResponseTask(channel_id_t c, const HttpResponse &res)
 	: cid(c)
 	, response(res)
 	{}
 
-	HttpResponseTask(channel_id_t c, HttpParser::Response &&res)
+	HttpResponseTask(channel_id_t c, HttpResponse &&res)
 	: cid(c)
 	, response(std::move(res))
 	{}

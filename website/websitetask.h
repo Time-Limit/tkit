@@ -17,9 +17,9 @@ public:
 class SourceReq : public HttpRequestTask
 {
 public:
-	SourceReq(channel_id_t c, const HttpParser::Request &req)
+	SourceReq(channel_id_t c, const HttpRequest &req)
 	: HttpRequestTask(c, req) {}
-	SourceReq(channel_id_t c, HttpParser::Request &&req)
+	SourceReq(channel_id_t c, HttpRequest &&req)
 	: HttpRequestTask(c, std::move(req)) {}
 
 	SourceReq(const SourceReq &) = default;
@@ -36,9 +36,9 @@ protected:
 class OperateReq : public HttpRequestTask
 {
 public:
-	OperateReq(channel_id_t c, const HttpParser::Request &req)
+	OperateReq(channel_id_t c, const HttpRequest &req)
 	: HttpRequestTask(c, req) {}
-	OperateReq(channel_id_t c, HttpParser::Request &&req)
+	OperateReq(channel_id_t c, HttpRequest &&req)
 	: HttpRequestTask(c, std::move(req)) {}
 
 	OperateReq(const OperateReq &) = default;
@@ -55,9 +55,9 @@ protected:
 class RedirectReq : public HttpRequestTask
 {
 public:
-	RedirectReq(channel_id_t c, const HttpParser::Request &req)
+	RedirectReq(channel_id_t c, const HttpRequest &req)
 	: HttpRequestTask(c, req) {}
-	RedirectReq(channel_id_t c, HttpParser::Request &&req)
+	RedirectReq(channel_id_t c, HttpRequest &&req)
 	: HttpRequestTask(c, std::move(req)) {}
 
 	RedirectReq(const RedirectReq &) = default;

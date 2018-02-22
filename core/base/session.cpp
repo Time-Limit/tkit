@@ -1,14 +1,90 @@
-#include "task.h"
+#include "session.h"
 #include "channel.h"
+#include "neter.h"
 #include "thread.h"
-#include <sstream>
+#include "protocol.h"
 
-void Parser::Append(const Octets &fresh_data)
+Session::Session(int fd)
+: sid(fd)
+, exchanger(nullptr)
 {
-	data.insert(data.end(), fresh_data.begin(), fresh_data.size());
 }
 
-void HttpParser::Parse(int64_t param)
+Session::~Session()
+{
+	delete exchanger;
+	exchanger = nullptr;
+}
+
+void Session::Close()
+{
+	manager->DelSession(this);
+}
+
+void Session::DataOut(const char *data, size_t size)
+{
+	exchanger->Send(data, size);
+}
+
+HttpSession::HttpSession(int fd)
+: Session(fd)
+{}
+
+void SessionManager::DelSession(Session *session)
+{
+	if(session)
+	{
+		MutexGuard guarder(session_map_lock);
+		SessionMap::iterator it = session_map.find(session->ID());
+
+		if(it != session_map.end())
+		{
+			session_map.erase(it);
+		}
+
+		delete session;
+	}
+}
+
+void SessionManager::Send(session_id_t sid, const char *data, size_t size)
+{
+	SessionMap::iterator it = session_map.find(sid);
+
+	if(it == session_map.end())
+	{
+		return ;
+	}
+
+	it->second->DataOut(data, size);
+}
+
+void SessionManager::AddSession(Session *session)
+{
+	MutexGuard guard(session_map_lock);
+	Exchanger *exchanger= new Exchanger(session->ID(), session);
+	session->SetExchanger(exchanger);
+	session->SetManager(this);
+	session_map.insert(std::make_pair(session->ID(), session));
+
+	epoll_event ev;
+	ev.events = EPOLLIN|EPOLLET;
+	ev.data.ptr = exchanger;
+	LOG_TRACE("SessionManager::Add, fd=%d, ip=%s", session->ID(), exchanger->IP());
+	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, session->ID(), &ev);
+}
+
+SessionManager::~SessionManager()
+{
+	for(auto &it : session_map)
+	{
+		delete it.second;
+		it.second = nullptr;
+	}
+
+	session_map.clear();
+}
+
+void HttpSession::Parse()
 {
 	enum PARSE_STATE
 	{
@@ -20,9 +96,9 @@ void HttpParser::Parse(int64_t param)
 	
 #define parse_state_t unsigned char 
 	
-	const char *begin = (const char *)data.begin() , *end = (const char *)data.end(), *tmp = NULL;
+	const char *begin = (const char *)recv_data.begin() , *end = (const char *)recv_data.end(), *tmp = NULL;
 	
-	Request req;
+	HttpRequest req;
 
 	for(parse_state_t state = PARSE_LINE; state < PARSE_DONE;)
 	{
@@ -121,8 +197,19 @@ void HttpParser::Parse(int64_t param)
 		};
 	}
 
-	data.erase((char *)data.begin(), (char *)begin);
+	recv_data.erase((char *)recv_data.begin(), (char *)begin);
 
-	ThreadPool::GetInstance().AddTask(GenRequestTask(param, std::move(req)));
+	ThreadPool::GetInstance().AddTask(new HandleNetProtocolTask(GetManager(), ID(), GenHttpProtocol(req)));
 #undef parse_state_t
+}
+
+HttpProtocol* HttpSession::GenHttpProtocol(const HttpRequest &req)
+{
+	return new HttpProtocol(req);
+}
+
+void HttpSessionManager::OnConnect(int fd)
+{
+	HttpSession *session = new HttpSession(fd);
+	AddSession(session);
 }

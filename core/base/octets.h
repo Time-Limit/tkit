@@ -187,5 +187,59 @@ public:
 	}
 };
 
+class OctetsStream
+{
+	Octets data;
+	unsigned int cursor;
+
+	template<typename T>
+	bool CheckLength()
+	{
+		if(cursor < data.size() && data.size()-cursor >= sizeof(T))
+		{
+			return true;
+		}
+		return false;
+	}
+
+public:
+	struct OSException
+	{
+		enum
+		{
+			OS_EXCEPTION_LENGTH = 0,
+		};
+
+		unsigned char reason;
+		OSException(unsigned char r) : reason(r) {}
+	};
+	
+	explicit OctetsStream(const Octets &d) : data(d), cursor(0) {}
+
+	template<typename T>
+	OctetsStream& operator>>(T &d)
+	{
+		if(CheckLength<T>() == false)
+		{
+			throw OSException(OSException::OS_EXCEPTION_LENGTH);
+		}
+
+		const unsigned char *tmp = (const unsigned char *)data.begin() + cursor;
+
+#ifdef _BIG_ENDIAN_
+		d = *(const T *)tmp;
+#else
+		d = 0;
+		for(unsigned char i = 0; i < sizeof(T); ++i)
+		{
+			(d <<= 8) += (*(tmp+i));
+		}
+#endif
+
+		cursor += sizeof(T);
+		return *this;
+	}
+};
+
 #endif
 

@@ -1,8 +1,6 @@
 #ifndef _WEBSITEPARSER_H_
 #define _WEBSITEPARSER_H_
 
-#include "parser.h"
-
 class WebsiteParser : public HttpParser
 {
 public:

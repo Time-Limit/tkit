@@ -21,37 +21,6 @@ class LogicTask;
 class HttpParser : public Parser
 {
 public:
-	struct Request
-	{
-		std::string method;
-		std::string url;
-		std::string version;
-		std::map<std::string, std::string> headers;
-		std::string body;
-		std::map<std::string, std::string> args;
-
-		Request() = default;
-		Request(Request&&) = default;
-		Request& operator=(Request&&) = default;
-		Request(const Request &) = default;
-		Request& operator=(const Request&) = default;
-	};
-
-	struct Response
-	{
-		std::string version;
-		unsigned short status;
-		std::string statement;
-		std::map<std::string, std::string> headers;
-		std::string body;
-
-		Response() = default;
-		Response(Response&&) = default;
-		Response& operator=(Response&&) = default;
-		Response(const Response &) = default;
-		Response& operator=(const Response&) = default;
-	};
-
 	HttpParser()
 	: Parser()
 	{}

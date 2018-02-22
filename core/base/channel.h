@@ -1,7 +1,6 @@
 #ifndef _CHANNLE_H_ 
 #define _CHANNLE_H_
 
-
 #include <map>
 #include <vector>
 #include <stdio.h>
@@ -19,7 +18,7 @@
 #include "exptype.h"
 #include "log.h"
 #include <functional>
-#include "parser.h"
+#include "session.h"
 
 class ChannelManager;
 
@@ -51,23 +50,31 @@ protected:
 	bool ready_close;
 };
 
-class Exchanger : public Channel
+class Exchanger final : public Channel
 {
+	friend class Session;
 public:
-	Exchanger(int f, Parser *p)
-	: Channel(f), parser(p), ready_send(false), cur_cursor(0)
+	Exchanger(int f, Session *s)
+	: Channel(f), session(s), ready_send(false), cur_cursor(0)
 	{
 		InitPeerName();
 	}
 
-protected:
+	~Exchanger() { session->Close(); session = nullptr; }
+
+	const char* IP() const { return ip; }
+
+private:
 	void Send(const void *buf, size_t size);
 	void OnSend();
 	void Recv();
 	void OnRecv();
 	void RegisterSendEvent();
-protected:
-	Parser * parser;
+
+	void InitPeerName();
+
+private:
+	Session *session;
 	Mutex olock;
 	Octets ibuff, obuff;
 	enum
@@ -78,20 +85,16 @@ protected:
 	bool ready_send;
 	char ip[16] /*xxx.xxx.xxx.xxx*/;
 	size_t cur_cursor;
-private:
-	void InitPeerName();
 };
 
 class Acceptor final : public Channel
 {
 public:
-	using ExchangerHatcher = Exchanger* (*) (int);
-public:
-	Acceptor(int f, ExchangerHatcher h)
-	: Channel(f), hatcher(h)
+	Acceptor(int f, SessionManager &manager)
+	: Channel(f), session_manager(manager)
 	{};
 
-	static bool Listen(const char * ip, int port, ExchangerHatcher hatcher);
+	static bool Listen(const char * ip, int port, SessionManager &manager);
 
 protected:
 	void Send(const void *, size_t) {}
@@ -99,7 +102,7 @@ protected:
 	void Recv() {};
 	void OnRecv();
 
-	ExchangerHatcher hatcher;
+	SessionManager &session_manager;
 };
 
 /*

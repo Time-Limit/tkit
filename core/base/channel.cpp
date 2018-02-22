@@ -35,6 +35,7 @@ void Channel::Close()
 
 void Exchanger::Send(const void * buf, size_t size)
 {
+	if(IsClose()) return ;
 	static const size_t OBUFF_SIZE_LIMIT = 64*1024*1024; 
 	MutexGuard guarder(olock);
 	if(obuff.size() + size > OBUFF_SIZE_LIMIT)
@@ -107,9 +108,8 @@ void Exchanger::Recv()
 void Exchanger::OnRecv()
 {
 	if(IsClose()) return;
-	parser->Append(ibuff);
+	session->DataIn(ibuff);
 	ibuff.clear();
-	parser->Parse(ID());
 }
 
 void Exchanger::InitPeerName()
@@ -153,16 +153,16 @@ void Acceptor::OnRecv()
 	
 	while((connect_fd = accept(fd, (struct sockaddr *)&accept_addr, (socklen_t *)&server_addr_len)) > 0 || errno == EINTR)
 	{
-		LOG_TRACE("Acceptor::Recv, connect_fd=%d", connect_fd);
-		ChannelManager::GetInstance().Add(hatcher(connect_fd));
+		LOG_TRACE("Acceptor::OnRecv, connect_fd=%d", connect_fd);
+		session_manager.OnConnect(connect_fd);
 	}
 }
 
-bool Acceptor::Listen(const char * ip, int port, ExchangerHatcher hatcher)
+bool Acceptor::Listen(const char * ip, int port, SessionManager &manager)
 {
-	if(!hatcher || !ip)
+	if(!ip)
 	{
-		LOG_ERROR("Acceptor::Listen, invalid argument.");
+		LOG_ERROR("Acceptor::Listen, invalid ip address.");
 		return false;
 	}
 	int sockfd = 0;
@@ -198,7 +198,7 @@ bool Acceptor::Listen(const char * ip, int port, ExchangerHatcher hatcher)
 
 	listen(sockfd, LISTEN_QUEUE_SIZE);
 	LOG_TRACE("Acceptor::Init, fd=%d", sockfd);	
-	ChannelManager::GetInstance().Add(new Acceptor(sockfd, hatcher));
+	ChannelManager::GetInstance().Add(new Acceptor(sockfd, manager));
 
 	return true;
 }

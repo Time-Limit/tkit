@@ -15,6 +15,17 @@ struct uint24
 	friend OctetsStream& operator>>(OctetsStream&, uint24&);
 	friend OctetsStream& operator<<(OctetsStream&, const uint24&);
 
+	uint24() : a(0), b(0), c(0) {}
+
+	uint24& operator=(int data)
+	{
+		OctetsStream os;
+		os << data;
+		unsigned char escape = 0;
+		os >> escape >> a >> b >> c;
+		return *this;
+	}
+
 private:
 	uint8 a, b, c;
 public:
@@ -37,6 +48,8 @@ struct DynamicArray
 {
 	LENGTH length;
 	std::vector<CONTENT> content;
+
+	DynamicArray() : length(0) {}
 
 	void Debug() const
 	{
@@ -134,6 +147,52 @@ private:
 		uint8 version_minor;
 		uint16 length;
 		uint8 type;
+	protected:
+		void InitBasePart(uint8 _msg_type, uint8 _version_major, uint8 _version_minor, uint16 _length, uint8 _type)
+		{
+			msg_type = _msg_type;
+			version_major = _version_major;
+			version_minor = _version_minor;
+			length = _length;
+			type = _type;
+		}
+	};
+
+	class ServerHello : public HandShake
+	{
+	public:
+		ServerHello(HttpsSession &_session) : HandShake(_session) {}
+		virtual OctetsStream& Serialize(OctetsStream &os) const override;
+		virtual OctetsStream& Deserialize(OctetsStream &os) override;
+		virtual void Handle(SessionManager *manager, session_id_t sid) override
+		{
+		}
+
+	private:
+		struct ProtocolVersion
+		{
+			uint8 version_major;
+			uint8 version_minor;
+
+			ProtocolVersion() : version_major(3), version_minor(3) {}
+		};
+
+		struct Random
+		{
+			uint32 gmt_unix_time;
+			opaque random_bytes[28];
+		};
+
+		typedef DynamicArray<uint8, opaque> LegacySessionIDEcho;
+		typedef DynamicArray<uint16, uint8> Extension;
+
+		uint24 length;
+		ProtocolVersion protovol_version;
+		Random random;
+		LegacySessionIDEcho legacy_session_id_echo;
+		uint16 cipher_suite;
+		uint8  legacy_compression_method;
+		Extension extensions;
 	};
 
 	class ClientHello : public HandShake
@@ -143,7 +202,7 @@ private:
 		virtual ~ClientHello() {}
 		virtual void Handle(SessionManager *manager, session_id_t sid)
 		{
-			session.SetConnectState(CS_WAIT_FINISH);
+			//session.SetConnectState(CS_WAIT_FINISH);
 			//Send Server Hello
 			//sesssion.Send();
 		}

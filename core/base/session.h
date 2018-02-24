@@ -33,7 +33,7 @@ public:
 	void DataIn(const Octets &data)
 	{
 		recv_data.insert(recv_data.end(), data.begin(), data.size());
-		Parse();
+		OnDataIn();
 	}
 
 	void Close();
@@ -49,7 +49,7 @@ protected:
 	SessionManager * GetManager() { return manager; }
 
 private:
-	virtual void Parse() = 0;
+	virtual void OnDataIn() = 0;
 };
 
 class SessionManager
@@ -78,8 +78,7 @@ public:
 	explicit HttpSession(int fd);
 
 private:
-	virtual void Parse() override;
-	virtual HttpProtocol * GenHttpProtocol(const HttpRequest &req);
+	virtual void OnDataIn() override;
 };
 
 class HttpSessionManager : public SessionManager

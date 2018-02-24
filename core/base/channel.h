@@ -20,23 +20,20 @@
 #include <functional>
 #include "session.h"
 
-class ChannelManager;
-
 class Channel
 {
-	friend class ChannelManager;
 public:
 	Channel(int f);
 	virtual ~Channel()
 	{
-		LOG_TRACE("Channel::~Channel, cid=%d, fd=%d, val=0x%p", cid, fd, this);
+		LOG_TRACE("Channel::~Channel, fd=%d, val=0x%p", fd, this);
 		if(close(fd))
 		{
 			LOG_ERROR("Channel::~Channel, close failed, %d(%s)", errno, strerror(errno));
 		}
 	}
 	void Handle(const epoll_event *event);
-	channel_id_t ID() const { return cid; }
+	channel_id_t ID() const { return fd; }
 	bool IsClose() const { return ready_close; }
 	void Close();
 protected:
@@ -46,7 +43,6 @@ protected:
 	virtual void OnRecv() = 0;
 protected:
 	int fd;
-	channel_id_t cid;
 	bool ready_close;
 };
 
@@ -112,34 +108,5 @@ class Connect() : public Channel final
 };
 
 */
-
-class ChannelManager
-{
-private:
-	typedef std::map<channel_id_t, Channel *> ChannelMap;
-	
-	Mutex lock;
-	ChannelMap channel_map;
-
-	typedef std::vector<Channel *> ChannelVector;
-	ChannelVector ready_close_vector;
-
-public:
-	bool Send(channel_id_t cid, const char *buf, size_t size);
-
-	void Add(Channel * c);
-	void ReadyClose(Channel * c);
-	void Close();
-	
-	static channel_id_t AllocID()
-	{
-		static channel_id_t cid = 0;
-		static SpinLock cid_lock;
-		
-		SpinLockGuard guarder(cid_lock);
-		return cid++;
-	}
-	static ChannelManager &GetInstance() { static ChannelManager channel_manager; return channel_manager; }
-};
 
 #endif

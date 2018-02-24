@@ -11,8 +11,11 @@
 #include <sys/epoll.h>
 #include <netinet/in.h>
 #include <assert.h>
+#include <set>
 #include "octets.h"
 #include "allocer.h"
+
+class Channel;
 
 class Neter
 {
@@ -30,10 +33,16 @@ public:
 
 	bool Ctl(int op, int fd, struct epoll_event *event);
 
+	void ReadyClose(Channel *c);
+
 private:
 	int epoll_fd;
 
 	struct epoll_event events[EPOLL_EVENT_SIZE];
+
+	typedef std::set<Channel *> ChannelSet;
+
+	ChannelSet channel_set;
 };
 
 #endif

@@ -176,7 +176,7 @@ void HttpResponseTask::Exec()
 	}
 	streamer << '\r' << '\n';
 	streamer << response.body;
-	ChannelManager::GetInstance().Send(cid, streamer.str().c_str(), streamer.str().size());
+	//ChannelManager::GetInstance().Send(cid, streamer.str().c_str(), streamer.str().size());
 }
 
 void HandleNetProtocolTask::Exec()

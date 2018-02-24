@@ -9,44 +9,6 @@
 #include "httpssession.h"
 #include <iostream>
 
-/*
-Exchanger* HatchExchangerWithWebsiteParser(int fd)
-{
-	Parser *p = nullptr;
-	Exchanger *e = nullptr;
-	try
-	{
-		p = new WebsiteParser();
-		e = new Exchanger(fd, p);
-	}
-	catch(...)
-	{
-		delete p;
-		delete e;
-		LOG_TRACE("HatchExchangerWithWebsiteParser, failed, fd=%d", fd);
-	}
-	return e;
-}
-
-Exchanger* HatchExchangerWithWebsite_HTTP_PORT_Parser(int fd)
-{
-	Parser *p = nullptr;
-	Exchanger *e = nullptr;
-	try
-	{
-	        p = new Website_HTTP_PORT_Parser();
-	        e = new Exchanger(fd, p);
-	}
-	catch(...)
-	{
-	        delete p;
-	        delete e;
-	        LOG_TRACE("HatchExchangerWithWebsiteParser, failed, fd=%d", fd);
-	}
-	return e;
-}
-*/
-
 int main(int argc, char **argv)
 {
 	ConfigManager::GetInstance().Reset({"website"});

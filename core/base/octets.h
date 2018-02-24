@@ -6,6 +6,8 @@
 #include <malloc.h>
 #include <string.h>
 
+class Protocol;
+
 inline void *fmemmove(void *dest, const void *src, size_t n)
 {
 	char *d = (char *)dest;
@@ -190,6 +192,7 @@ public:
 class OctetsStream
 {
 	Octets data;
+	unsigned int start_cursor;
 	unsigned int cursor;
 
 	template<typename T>
@@ -201,6 +204,43 @@ class OctetsStream
 		}
 		return false;
 	}
+
+	template<typename T>
+	OctetsStream& pop_bytes(T &d)
+	{
+		if(CheckLength<T>() == false)
+		{
+			throw OSException(OSException::OS_EXCEPTION_LENGTH);
+		}
+
+		const unsigned char *tmp = (const unsigned char *)data.begin() + cursor;
+
+#ifdef _BIG_ENDIAN_
+		d = *(const T *)tmp;
+#else
+		union U
+		{
+			T t;
+			unsigned char c[sizeof(T)];
+		} u;
+		for(unsigned char i = 0; i < sizeof(T); ++i)
+		{
+			u.c[i] = *(tmp+i);
+		}
+		d = u.t;
+#endif
+		cursor += sizeof(T);
+		return *this;
+	}
+	
+public:
+	class Start { };
+	class Commit {};
+	class Revert {};
+
+	static const Start  START;
+	static const Commit COMMIT;
+	static const Revert REVERT;
 
 public:
 	struct OSException
@@ -214,29 +254,39 @@ public:
 		OSException(unsigned char r) : reason(r) {}
 	};
 	
-	explicit OctetsStream(const Octets &d) : data(d), cursor(0) {}
+	explicit OctetsStream(const Octets &d) : data(d), start_cursor(0), cursor(0) {}
 
-	template<typename T>
-	OctetsStream& operator>>(T &d)
+	OctetsStream& operator>>(Protocol &d);
+	OctetsStream& operator>>(unsigned char &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(char &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(unsigned short &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(short &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(unsigned int &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(int &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(unsigned long &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(int64_t &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(float &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(double &d) { return pop_bytes(d); }
+
+	OctetsStream& operator>>(const Start &start)
 	{
-		if(CheckLength<T>() == false)
-		{
-			throw OSException(OSException::OS_EXCEPTION_LENGTH);
-		}
+		start_cursor = cursor;
+		return *this;
+	}
+	
+	OctetsStream& operator>>(const Commit &commit)
+	{
+		char * b = (char *)data.begin();
+		data.erase(b+start_cursor, b+cursor);
+		cursor = start_cursor;
+		start_cursor = 0;
+		return *this;
+	}
 
-		const unsigned char *tmp = (const unsigned char *)data.begin() + cursor;
-
-#ifdef _BIG_ENDIAN_
-		d = *(const T *)tmp;
-#else
-		d = 0;
-		for(unsigned char i = 0; i < sizeof(T); ++i)
-		{
-			(d <<= 8) += (*(tmp+i));
-		}
-#endif
-
-		cursor += sizeof(T);
+	OctetsStream& operator>>(const Revert &revert)
+	{
+		cursor = start_cursor;
+		start_cursor = 0;
 		return *this;
 	}
 };

@@ -6,7 +6,6 @@
 
 Channel::Channel(int f)
 	: fd(f)
-	, cid(ChannelManager::AllocID())
 	, ready_close(false)
 {
 	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
@@ -30,7 +29,7 @@ void Channel::Close()
 {
 	if(IsClose()) return;
 	ready_close = true;
-	ChannelManager::GetInstance().ReadyClose(this);
+	Neter::GetInstance().ReadyClose(this);
 }
 
 void Exchanger::Send(const void * buf, size_t size)
@@ -198,27 +197,17 @@ bool Acceptor::Listen(const char * ip, int port, SessionManager &manager)
 
 	listen(sockfd, LISTEN_QUEUE_SIZE);
 	LOG_TRACE("Acceptor::Init, fd=%d", sockfd);	
-	ChannelManager::GetInstance().Add(new Acceptor(sockfd, manager));
+
+	epoll_event ev;
+	ev.events = EPOLLIN|EPOLLET|EPOLLET;
+	Acceptor *acceptor = new Acceptor(sockfd, manager);
+	ev.data.ptr = acceptor;
+	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, acceptor->ID(), &ev);
 
 	return true;
 }
 
-bool ChannelManager::Send(channel_id_t cid, const char * buf, size_t size)
-{
-	MutexGuard guarder(lock);
-
-	ChannelMap::iterator it = channel_map.find(cid);
-
-	if(it == channel_map.end() || it->second == NULL)
-	{
-		return false;
-	}
-
-	it->second->Send(buf, size);
-
-	return true;
-}
-
+/*
 void ChannelManager::ReadyClose(Channel * c)
 {
 	MutexGuard guarder(lock);
@@ -257,4 +246,5 @@ void ChannelManager::Close()
 
 	ready_close_vector.clear();
 }
+*/
 

@@ -150,7 +150,7 @@ public:
 	explicit HttpsSession(int fd);
 
 private:
-	virtual void Parse() override;
+	virtual void OnDataIn() override;
 };
 
 class HttpsSessionManager : public SessionManager

@@ -7,15 +7,17 @@
 #include <map>
 
 class SessionManager;
+class OctetsStream;
 
 class Protocol
 {
 public:
 	virtual void Handle(SessionManager *manager, session_id_t sid) = 0;
+	virtual OctetsStream& Deserialize(OctetsStream &os) = 0;
 	virtual ~Protocol() {}
 };
 
-struct HttpRequest
+struct HttpRequest : public Protocol
 {
 	std::string method;
 	std::string url;
@@ -29,6 +31,9 @@ struct HttpRequest
 	HttpRequest& operator=(HttpRequest&&) = default;
 	HttpRequest(const HttpRequest &) = default;
 	HttpRequest& operator=(const HttpRequest&) = default;
+
+	virtual void Handle(SessionManager *manager, session_id_t sid);
+	virtual OctetsStream& Deserialize(OctetsStream &os);
 };
 
 inline std::stringstream& operator<< (std::stringstream& ss, const HttpRequest &req)
@@ -76,16 +81,5 @@ inline std::stringstream& operator<< (std::stringstream &ss, const HttpResponse 
 
 	return ss;
 }
-
-class HttpProtocol : public Protocol
-{
-private:
-	HttpRequest req;
-public:
-	HttpProtocol(const HttpRequest &req)
-	: req(req)
-	{}
-	virtual void Handle(SessionManager *manager, session_id_t sid);
-};
 
 #endif

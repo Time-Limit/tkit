@@ -43,8 +43,6 @@ bool Neter::Ctl(int op, int fd, struct epoll_event *event)
 
 void Neter::Wait(time_t timeout)
 {
-	ChannelManager::GetInstance().Close();
-
 	int result = epoll_wait(epoll_fd, events, EPOLL_EVENT_SIZE, timeout);
 
 	if(result < 0)
@@ -62,4 +60,21 @@ void Neter::Wait(time_t timeout)
 			((Channel *)(begin->data.ptr))->Handle(begin);
 		}
 	}
+
+	ChannelSet::iterator it = channel_set.begin();
+	ChannelSet::iterator ie = channel_set.end();
+
+	for(; it != ie; ++it)
+	{
+		epoll_event event;
+		Ctl(EPOLL_CTL_DEL, (*it)->ID(), &event);
+		delete *it;
+	}
+
+	channel_set.clear();
+}
+
+void Neter::ReadyClose(Channel *c)
+{
+	channel_set.insert(c);
 }

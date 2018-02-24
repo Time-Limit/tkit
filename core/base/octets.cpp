@@ -11,3 +11,8 @@ OctetsStream& OctetsStream::operator>>(Protocol &d)
 {
 	return d.Deserialize(*this);
 }
+
+OctetsStream& OctetsStream::operator<<(const Protocol &d)
+{
+	return d.Serialize(*this);
+}

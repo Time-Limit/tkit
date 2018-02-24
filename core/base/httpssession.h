@@ -4,6 +4,7 @@
 #include "session.h"
 #include <vector>
 #include <iostream>
+#include "protocol.h"
 
 typedef unsigned char opaque;
 typedef unsigned char uint8;
@@ -12,6 +13,7 @@ typedef unsigned int uint32;
 struct uint24
 {
 	friend OctetsStream& operator>>(OctetsStream&, uint24&);
+	friend OctetsStream& operator<<(OctetsStream&, const uint24&);
 
 private:
 	uint8 a, b, c;
@@ -23,6 +25,11 @@ public:
 inline OctetsStream& operator>>(OctetsStream& os, uint24 &data)
 {
 	return os >> data.a >> data.b >> data.c;
+}
+
+inline OctetsStream& operator<<(OctetsStream& os, const uint24 &data)
+{
+	return os << data.a << data.b << data.c;
 }
 
 template<typename LENGTH, typename CONTENT>
@@ -54,103 +61,142 @@ inline OctetsStream& operator>>(OctetsStream &os, DynamicArray<LENGTH, CONTENT> 
 	return os;
 }
 
-struct ClientHello
+template<typename LENGTH, typename CONTENT>
+inline OctetsStream& operator<<(OctetsStream &os, const DynamicArray<LENGTH, CONTENT> &d)
 {
-#pragma pack(1)
-	struct ProtocolVersion
+	os << d.length;
+	for(const auto &k : d.content)
 	{
-		uint8 major;
-		uint8 minor;
-	};
-
-	struct Random
-	{
-		uint32 gmt_unix_time;
-		opaque random_bytes[28];
-	};
-
-#pragma pack()
-
-	typedef DynamicArray<uint8, opaque> SessionID;
-	typedef DynamicArray<uint16, uint16> CipherSuites;
-	typedef DynamicArray<uint8, uint8> CompressionMethods;
-
-	uint24 length;
-	ProtocolVersion version;
-	Random random;
-	SessionID session_id;
-	CipherSuites cipher_suites;
-	CompressionMethods compression_methods;
-
-	void Debug() const
-	{
-		using std::cout;
-		using std::endl;
-		cout << "major : " << version.major << endl;
-		cout << "minor : " << version.minor << endl;
-		cout << "length :" << length.get() << endl;
-		cout << "time  : " << random.gmt_unix_time << endl;
-		cout << "random_bytes : ";
-		for(size_t i = 0; i < sizeof(random.random_bytes)/sizeof(random.random_bytes[0]); ++i)
-		{
-			printf("0x%x ", random.random_bytes[i]);
-		}
-		cout << endl;
-
-		session_id.Debug();
-		cipher_suites.Debug();
-		compression_methods.Debug();
+		os << k;
 	}
-};
 
-inline OctetsStream& operator>> (OctetsStream &os, ClientHello &c)
-{
-	os >> c.length;
-	os >> c.version.major >> c.version.minor;
-	os >> c.random.gmt_unix_time;
-	for(size_t i = 0; i < sizeof(c.random.random_bytes)/sizeof(c.random.random_bytes[0]); ++i)
-	{
-		os >> c.random.random_bytes[i];
-	}
-	os >> c.session_id;
-	os >> c.cipher_suites;
-	os >> c.compression_methods;
-
-	return os;
-}
-
-template<typename MSG>
-struct HandShake
-{
-#pragma pack(1)
-	uint8 msg_type;
-	uint8 major;
-	uint8 minor;
-	uint16 length;
-	uint8 type;
-#pragma pack()
-	MSG msg;
-};
-
-template<typename MSG>
-inline OctetsStream& operator>>(OctetsStream &os, HandShake<MSG> &data)
-{
-	os >> data.msg_type;
-	os >> data.major;
-	os >> data.minor;
-	os >> data.length;
-	os >> data.type;
-	os >> data.msg;
 	return os;
 }
 
 class HttpsSession : public HttpSession
 {
+	friend class ClientHello;
+	typedef unsigned char connect_state_t;
+
 public:
 	explicit HttpsSession(int fd);
 
+	void SetConnectState(connect_state_t state)
+	{
+		connect_state = state;
+	}
+
 private:
+
 	virtual void OnDataIn() override;
+
+	enum CONNECT_STATE
+	{
+		CS_WAIT_CLIENT_HELLO = 0,
+		CS_WAIT_FINISH = 1,
+		CS_SUCCESS = 2,
+	};
+
+	connect_state_t connect_state;
+
+	class TLS : public Protocol
+	{
+	protected:
+		HttpsSession &session;
+	public:
+		TLS(HttpsSession &s) : session(s) {}
+	};
+
+	class HandShake : public TLS
+	{
+	public:
+		virtual OctetsStream& Serialize(OctetsStream& os) const
+		{
+			os << msg_type << version_major << version_minor << length << type;
+			return os;
+		}
+
+		virtual OctetsStream& Deserialize(OctetsStream& os)
+		{
+			os >> msg_type >> version_major >> version_minor >> length >> type;
+			return os;
+		}
+
+		virtual ~HandShake() {}
+
+		HandShake(HttpsSession &_session)
+		: TLS(_session) , msg_type(0) ,version_major(0) , version_minor(0) , length(0) , type(0)
+		{}
+
+	private:
+		uint8 msg_type;
+		uint8 version_major;
+		uint8 version_minor;
+		uint16 length;
+		uint8 type;
+	};
+
+	class ClientHello : public HandShake
+	{
+	public:
+		ClientHello(HttpsSession &_session) : HandShake(_session) {}
+		virtual ~ClientHello() {}
+		virtual void Handle(SessionManager *manager, session_id_t sid)
+		{
+			session.SetConnectState(CS_WAIT_FINISH);
+			//Send Server Hello
+			//sesssion.Send();
+		}
+
+		virtual OctetsStream& Serialize(OctetsStream& os) const override;
+		virtual OctetsStream& Deserialize(OctetsStream& os) override;
+	private:
+
+		struct ProtocolVersion
+		{
+			uint8 major;
+			uint8 minor;
+		};
+
+		struct Random
+		{
+			uint32 gmt_unix_time;
+			opaque random_bytes[28];
+		};
+
+		typedef DynamicArray<uint8, opaque> SessionID;
+		typedef DynamicArray<uint16, uint16> CipherSuites;
+		typedef DynamicArray<uint8, uint8> CompressionMethods;
+		typedef DynamicArray<uint16, uint8> Extension;
+
+		uint24 length;
+		ProtocolVersion version;
+		Random random;
+		SessionID session_id;
+		CipherSuites cipher_suites;
+		CompressionMethods compression_methods;
+		Extension extension;
+
+		void Debug() const
+		{
+			using std::cout;
+			using std::endl;
+			cout << "major : " << version.major << endl;
+			cout << "minor : " << version.minor << endl;
+			cout << "length :" << length.get() << endl;
+			cout << "time  : " << random.gmt_unix_time << endl;
+			cout << "random_bytes : ";
+			for(size_t i = 0; i < sizeof(random.random_bytes)/sizeof(random.random_bytes[0]); ++i)
+			{
+				printf("0x%x ", random.random_bytes[i]);
+			}
+			cout << endl;
+
+			session_id.Debug();
+			cipher_suites.Debug();
+			compression_methods.Debug();
+		}
+	};
 };
 
 class HttpsSessionManager : public SessionManager

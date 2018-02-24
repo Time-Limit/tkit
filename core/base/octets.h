@@ -225,11 +225,32 @@ class OctetsStream
 		} u;
 		for(unsigned char i = 0; i < sizeof(T); ++i)
 		{
-			u.c[i] = *(tmp+i);
+			u.c[sizeof(T) - i - 1] = *(tmp+i);
 		}
 		d = u.t;
 #endif
 		cursor += sizeof(T);
+		return *this;
+	}
+
+	template<typename T>
+	OctetsStream& push_bytes(const T &d)
+	{
+#ifdef _BIG_ENDIAN_
+		data.insert(data.end(), &d, sizeof(T));
+#else
+		union U
+		{
+			T t;
+			unsigned char c[sizeof(T)];
+		} u;
+		const unsigned char *tmp = (const unsigned char *)(&d);
+		for(unsigned char i = 0; i < sizeof(T); ++i)
+		{
+			u.c[sizeof(T) - i - 1] = *(tmp+i);
+		}
+		data.insert(data.end(), &u.t, sizeof(T));
+#endif
 		return *this;
 	}
 	
@@ -253,8 +274,25 @@ public:
 		unsigned char reason;
 		OSException(unsigned char r) : reason(r) {}
 	};
+
+	const Octets& GetData() const { return data; }
+
+	void Append(const void *x, const void *y) { data.insert(data.end(), x, y); }
 	
+	explicit OctetsStream() : start_cursor(0), cursor(0) {}
 	explicit OctetsStream(const Octets &d) : data(d), start_cursor(0), cursor(0) {}
+
+	OctetsStream& operator<<(const Protocol &d);
+	OctetsStream& operator<<(const unsigned char &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const char &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const unsigned short &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const short &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const unsigned int &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const int &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const unsigned long &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const int64_t &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const float &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const double &d) { return push_bytes(d); }
 
 	OctetsStream& operator>>(Protocol &d);
 	OctetsStream& operator>>(unsigned char &d) { return pop_bytes(d); }

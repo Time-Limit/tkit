@@ -8,7 +8,7 @@
 #include <string>
 
 //BASE
-typedef unsigned int channel_id_t;
+typedef int channel_id_t;
 typedef int session_id_t;
 
 //HTTP

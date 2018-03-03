@@ -57,6 +57,13 @@ void SessionManager::Send(session_id_t sid, const char *data, size_t size)
 	it->second->DataOut(data, size);
 }
 
+void SessionManager::Send(session_id_t sid, const Protocol &p)
+{
+	OctetsStream os;
+	os << p;
+	Send(sid, (const char *)os.GetData().begin(), os.GetData().size());
+}
+
 void SessionManager::AddSession(Session *session)
 {
 	MutexGuard guard(session_map_lock);

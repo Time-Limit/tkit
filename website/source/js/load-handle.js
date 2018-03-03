@@ -22,7 +22,7 @@ function createXMLHttpRequest()
 function loadfinish()
 {
 	xmlHttp = createXMLHttpRequest();  
-	var url = document.getElementById('content').innerText;
+	var url = document.getElementById('contentbuffer').innerText;
 	xmlHttp.open("GET", url, true);
 	xmlHttp.onreadystatechange = function()
 	{

@@ -62,6 +62,7 @@ public:
 	virtual void OnConnect(int fd) = 0;
 
 	void Send(session_id_t sid, const char *data, size_t size);
+	void Send(session_id_t sid, const Protocol &p);
 	void DelSession(Session *session);
 
 protected:

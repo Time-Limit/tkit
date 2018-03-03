@@ -17,15 +17,11 @@ public:
 class SourceReq : public HttpRequestTask
 {
 public:
-	SourceReq(channel_id_t c, const HttpRequest &req)
-	: HttpRequestTask(c, req) {}
-	SourceReq(channel_id_t c, HttpRequest &&req)
-	: HttpRequestTask(c, std::move(req)) {}
+	SourceReq(SessionManager *manager, session_id_t sid, const HttpRequest &req)
+	: HttpRequestTask(manager, sid, req) {}
 
 	SourceReq(const SourceReq &) = default;
 	SourceReq& operator= (const SourceReq &) = default;
-	SourceReq(SourceReq &&) = default;
-	SourceReq& operator= (SourceReq&&) = default;
 protected:
 	//virtual void ExtendBaseCheckRequest() override;
 	virtual void LogicCheckRequest() override;
@@ -36,10 +32,8 @@ protected:
 class OperateReq : public HttpRequestTask
 {
 public:
-	OperateReq(channel_id_t c, const HttpRequest &req)
-	: HttpRequestTask(c, req) {}
-	OperateReq(channel_id_t c, HttpRequest &&req)
-	: HttpRequestTask(c, std::move(req)) {}
+	OperateReq(SessionManager *manager, session_id_t sid, const HttpRequest &req)
+	: HttpRequestTask(manager, sid, req) {}
 
 	OperateReq(const OperateReq &) = default;
 	OperateReq& operator= (const OperateReq &) = default;
@@ -55,10 +49,8 @@ protected:
 class RedirectReq : public HttpRequestTask
 {
 public:
-	RedirectReq(channel_id_t c, const HttpRequest &req)
-	: HttpRequestTask(c, req) {}
-	RedirectReq(channel_id_t c, HttpRequest &&req)
-	: HttpRequestTask(c, std::move(req)) {}
+	RedirectReq(SessionManager *manager, session_id_t sid, const HttpRequest &req)
+	: HttpRequestTask(manager, sid, req) {}
 
 	RedirectReq(const RedirectReq &) = default;
 	RedirectReq& operator= (const RedirectReq &) = default;

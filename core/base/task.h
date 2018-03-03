@@ -53,27 +53,25 @@ public:
 
 class HttpRequestTask : public NormalTask
 {
-	channel_id_t cid;
+	SessionManager *manager;
+	session_id_t	sid;
+
 protected:
 	HttpRequest request;
 	HttpResponse response;
+
 public:
-	HttpRequestTask(channel_id_t c, const HttpRequest &req)
-	: cid(c)
+	HttpRequestTask(SessionManager * _manager, session_id_t _sid, const HttpRequest &req)
+	: manager(_manager)
+	, sid(_sid)
 	, request(req)
 	{}
 
-	HttpRequestTask(channel_id_t c, HttpRequest &&req)
-	: cid(c)
-	, request(std::move(req))
-	{}
-
-	HttpRequestTask(HttpRequestTask &&) = default;
-	HttpRequestTask& operator= (HttpRequestTask &&) = default;
 	HttpRequestTask(const HttpRequestTask &) = default;
 	HttpRequestTask& operator= (const HttpRequestTask &) = default;
 
 	static bool IsValidEscapeChar(unsigned int);
+
 protected:
 	void BaseCheckRequest();
 	virtual void ExtendBaseCheckRequest() {}
@@ -93,33 +91,6 @@ public:
 		ExtendCompleteResponse();
 		CompleteResponse();
 	}
-};
-
-class HttpResponseTask : public NormalTask
-{
-public:
-	using res_data_t = std::string;
-	using res_stream_t = std::stringstream;
-private:
-	channel_id_t cid;
-	HttpResponse response;
-public:
-	HttpResponseTask(channel_id_t c, const HttpResponse &res)
-	: cid(c)
-	, response(res)
-	{}
-
-	HttpResponseTask(channel_id_t c, HttpResponse &&res)
-	: cid(c)
-	, response(std::move(res))
-	{}
-
-	HttpResponseTask(HttpResponseTask &&) = default;
-	HttpResponseTask& operator=(HttpResponseTask &&) = default;
-	HttpResponseTask(const HttpResponseTask &) = default;
-	HttpResponseTask& operator=(const HttpResponseTask &) = default;
-
-	virtual void Exec() final;
 };
 
 #endif

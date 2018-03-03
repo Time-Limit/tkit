@@ -163,20 +163,7 @@ void HttpRequestTask::CompleteResponse()
 		response.body = "";
 	}
 
-	ThreadPool::GetInstance().AddTask(new HttpResponseTask(cid, response));
-}
-
-void HttpResponseTask::Exec()
-{
-	res_stream_t streamer;
-	streamer << response.version <<  " " << response.status << " " << response.statement << '\r' << '\n';
-	for(const auto &p : response.headers)
-	{
-		streamer << p.first <<  ": " << p.second << '\r' << '\n';
-	}
-	streamer << '\r' << '\n';
-	streamer << response.body;
-	//ChannelManager::GetInstance().Send(cid, streamer.str().c_str(), streamer.str().size());
+	manager->Send(sid, response);
 }
 
 void HandleNetProtocolTask::Exec()

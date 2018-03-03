@@ -4,29 +4,6 @@
 #include "session.h"
 #include "log.h"
 
-void HttpRequest::Handle(SessionManager *manager, session_id_t sid)
-{
-	HttpResponse response;
-	response.version = "HTTP/1.1";
-	ResetHttpResponseStatus(response, HTTP_SC_OK);
-
-	response.body =
-	"<html>"
-	"<h1 align=\"center\">" + tostring(response.status) + " " + response.statement + "</h1>"
-	"<hr></hr>"
-	"<p align=\"center\">tcore</p>"
-	"</html>";
-	ForceSetHeader(response, HTTP_CONTENT_LENGTH, tostring(response.body.size()));
-	ForceSetHeader(response, HTTP_CONTENT_TYPE, GetMimeType("html"));
-
-	OctetsStream os;
-	os << response;
-
-	const Octets &data = os.GetData();
-
-	manager->Send(sid, (const char *)data.begin(), data.size());
-}
-
 OctetsStream& HttpResponse::Deserialize(OctetsStream &os)
 {
 	enum PARSE_STATE
@@ -186,7 +163,10 @@ OctetsStream& HttpResponse::Serialize(OctetsStream &os) const
 {
 	os.Append(version.c_str(), version.c_str()+version.size());
 	os << ' ';
-	os << status;
+	std::stringstream ss_status;
+	ss_status << status;
+	std::string str = ss_status.str();
+	os.Append(str.c_str(), str.c_str() + str.size());
 	os << ' ';
 	os.Append(statement.c_str(), statement.c_str() + statement.size());
 	os << '\r' << '\n';

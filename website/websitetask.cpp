@@ -7,6 +7,12 @@
 #include "file.h"
 #include <stdlib.h>
 
+void HttpRequest::Handle(SessionManager *manager, session_id_t sid)
+{
+	SourceReq *req = new SourceReq(manager, sid, *this);
+	req->Exec();
+}
+
 void WebsiteTask::Exec()
 {
 	signal(SIGPIPE, SIG_IGN);

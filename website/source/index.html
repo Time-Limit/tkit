@@ -43,7 +43,8 @@
 	       oldText: null,     // used to check if an update is needed
 
 	       Init: function () {
-		       this.buffer = document.getElementById("content");
+		       this.buffer = document.getElementById("contentbuffer");
+		       this.show = document.getElementById("content");
 	       },
 
 	Update: function () {
@@ -66,6 +67,7 @@
 	PreviewDone: function () {
 			     this.mjRunning = false;
 			     this.buffer.innerHTML = marked(this.UnEscape(this.buffer.innerHTML));
+			     this.show.innerHTML = this.buffer.innerHTML;
 		     },
 
 	UnEscape: function (html) {
@@ -167,7 +169,9 @@
 	<a class="search_icon" target="_self" href="/search.html"></a>
 </div>
 <div id="content" class="main-part">
-/record/index.md
+</div>
+<div id="contentbuffer" style="display:none; position:absolute; float:bottom; bottom:0; right: 0">
+/record/MySql/MYSQL_RECORD-2018-03-02.md
 </div>
 </body>
 <script>

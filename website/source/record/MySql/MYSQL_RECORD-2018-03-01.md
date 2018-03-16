@@ -325,3 +325,27 @@ DELETE FROM tn where cn = val;
 	DROP VIEW view_name;
 
 	show table status where comment = 'view' \G;
+
+
+
+## 2018-03-16
+
+### 定义
+
+* 事务：一组SQL语句
+* 回退：撤销指定SQL语句的过程。
+* 提交：将未保存的SQL语句结果写入数据库。
+* 保留点：事务处理中设置的临时占位符，可以对它发布回退。
+
+### 事务相关的SQL语句
+
+	START TRANSACTION;
+	SAVEPOINT point_name;
+	ROLLBACK TO point_name;
+	ROLLEBACK;
+	COMMIT;
+
+
+```
+事务用来管理 INSERT，UPDATE，DELETE。不能回退 INSERT，DROP， CREATE。
+```

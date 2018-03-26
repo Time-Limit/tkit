@@ -25,6 +25,11 @@ void Session::DataOut(const char *data, size_t size)
 	exchanger->Send(data, size);
 }
 
+void Session::SetExchanger()
+{
+	exchanger = new Exchanger(ID(), this);
+}
+
 HttpSession::HttpSession(int fd)
 : Session(fd)
 {}
@@ -67,15 +72,14 @@ void SessionManager::Send(session_id_t sid, const Protocol &p)
 void SessionManager::AddSession(Session *session)
 {
 	MutexGuard guard(session_map_lock);
-	Exchanger *exchanger= new Exchanger(session->ID(), session);
-	session->SetExchanger(exchanger);
 	session->SetManager(this);
+	session->SetExchanger();
 	session_map.insert(std::make_pair(session->ID(), session));
 
 	epoll_event ev;
 	ev.events = EPOLLIN|EPOLLET;
-	ev.data.ptr = exchanger;
-	LOG_TRACE("SessionManager::Add, fd=%d, ip=%s", session->ID(), exchanger->IP());
+	ev.data.ptr = session->GetExchanger();
+	LOG_TRACE("SessionManager::Add, fd=%d, ip=%s", session->ID(), session->GetExchanger()->IP());
 	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, session->ID(), &ev);
 }
 

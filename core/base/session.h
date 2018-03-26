@@ -15,11 +15,12 @@ class Session
 {
 private:
 	session_id_t sid;
-	Exchanger *exchanger;
 	SessionManager *manager;
 
 protected:
 	Octets recv_data;
+	Exchanger *exchanger;
+
 
 public:
 	explicit Session(int fd);
@@ -38,10 +39,9 @@ public:
 
 	void Close();
 
-	void SetExchanger(Exchanger *e)
-	{
-		exchanger = e;
-	}
+	virtual void SetExchanger();
+
+	Exchanger * GetExchanger() const { return exchanger; };
 
 	void SetManager(SessionManager *m) { manager = m; }
 

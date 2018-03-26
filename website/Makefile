@@ -1,4 +1,4 @@
-.PHONY: website clean
+.PHONY: website clean async
 CC = g++
 core_objs = ../core/base/neter.o ../core/base/thread.o ../core/base/log.o ../core/base/octets.o \
 	    ../core/base/config.o ../core/base/task.o ../core/inl/enums.o ../core/base/file.o \
@@ -7,7 +7,7 @@ core_objs = ../core/base/neter.o ../core/base/thread.o ../core/base/log.o ../cor
 
 website_objs = website.o websitetask.o websitebase.o
 
-lib_objs = ../core/lib/lua/liblua.a
+lib_objs = ../core/lib/lua/liblua.a -lssl -lcrypto
 
 objs = $(core_objs) $(website_objs)
 
@@ -25,3 +25,5 @@ $(objs) : %.o : %.cpp
 
 clean:
 	rm -f $(objs) website
+async:
+	g++ -o async  async-ssl-svr.cc -lssl -lcrypto

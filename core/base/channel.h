@@ -19,6 +19,8 @@
 #include "log.h"
 #include <functional>
 #include "session.h"
+#include "openssl/ssl.h"
+#include "openssl/err.h"
 
 class Channel
 {
@@ -46,7 +48,7 @@ protected:
 	bool ready_close;
 };
 
-class Exchanger final : public Channel
+class Exchanger : public Channel
 {
 	friend class Session;
 public:
@@ -60,16 +62,17 @@ public:
 
 	const char* IP() const { return ip; }
 
-private:
+protected:
 	void Send(const void *buf, size_t size);
 	void OnSend();
 	void Recv();
 	void OnRecv();
 	void RegisterSendEvent();
+	void RegisterRecvEvent();
 
 	void InitPeerName();
 
-private:
+protected:
 	Session *session;
 	Mutex olock;
 	Octets ibuff, obuff;
@@ -81,6 +84,28 @@ private:
 	bool ready_send;
 	char ip[16] /*xxx.xxx.xxx.xxx*/;
 	size_t cur_cursor;
+};
+
+class SecureExchanger : public Exchanger
+{
+public:
+	SecureExchanger(int f, Session *s, SSL *_ssl)
+	: Exchanger(f, s)
+	, is_handshake_finish(false)
+	, is_init_ssl(false)
+	, ssl(_ssl)
+	{
+	}
+
+	void OnSend();
+	void Recv();
+private:
+	bool is_handshake_finish;
+	bool is_init_ssl;
+	SSL *ssl;
+
+private:
+	bool Handshake();
 };
 
 class Acceptor final : public Channel

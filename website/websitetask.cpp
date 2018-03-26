@@ -11,7 +11,7 @@ void HttpRequest::Handle(SessionManager *manager, session_id_t sid)
 {
 	SourceReq *req = new SourceReq(manager, sid, *this);
 	req->Exec();
-	delete Exec();
+	delete req;
 }
 
 void WebsiteTask::Exec()

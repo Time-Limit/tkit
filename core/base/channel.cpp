@@ -140,6 +140,18 @@ void Exchanger::RegisterSendEvent()
 	}
 }
 
+void Exchanger::RegisterRecvEvent()
+{
+	if(ready_send == false)
+	{
+		ready_send = true;
+		epoll_event event;
+		event.events = EPOLLIN | EPOLLOUT | EPOLLET;
+		event.data.ptr = this;
+		Neter::GetInstance().Ctl(EPOLL_CTL_MOD, fd, &event);
+	}
+}
+
 void Acceptor::OnRecv()
 {
 	if(IsClose())
@@ -207,44 +219,158 @@ bool Acceptor::Listen(const char * ip, int port, SessionManager &manager)
 	return true;
 }
 
-/*
-void ChannelManager::ReadyClose(Channel * c)
+void SecureExchanger::OnSend()
 {
-	MutexGuard guarder(lock);
-	channel_map.erase(c->ID());
-	ready_close_vector.push_back(c);
-}
 
-void ChannelManager::Add(Channel * c)
-{
-	MutexGuard guarder(lock);
-	if(channel_map.find(c->ID()) != channel_map.end())
+	if(IsClose()) return;
+
+	if(!is_handshake_finish)
 	{
-		LOG_ERROR("ChannelManager::Add, fatal error, addr=0x%p", c);
-		c->Close();
+		Handshake();
 		return ;
 	}
-	channel_map[c->ID()] = c;
-	epoll_event ev;
-	ev.events = EPOLLIN|EPOLLET|EPOLLET;
-	ev.data.ptr = c;
-	LOG_TRACE("ChannelManager::Add, fd=%d, addr=0x%p", c->fd, c);
-	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, c->fd, &ev);
+
+	MutexGuard guarder(olock);
+	ready_send = false;
+	int per_cnt = SSL_write(ssl, ((char *)obuff.begin()) + cur_cursor, obuff.size() - cur_cursor);
+	if(per_cnt < 0)
+	{
+		int error = SSL_get_error(ssl, per_cnt);
+		if(error == SSL_ERROR_WANT_WRITE)
+		{
+			RegisterRecvEvent();
+			return ;
+		}
+		LOG_ERROR("SecureExchanger::OnSend, errno=%d, info=%s", errno, strerror(errno));
+		obuff.clear();
+		cur_cursor = 0;
+		Close();
+		return ;
+	}
+	if((size_t)per_cnt == obuff.size() - cur_cursor)
+	{
+		cur_cursor = 0;
+		obuff.clear();
+		return ;
+	}
+	cur_cursor += per_cnt;
+	RegisterSendEvent();
 }
 
-void ChannelManager::Close()
+bool SecureExchanger::Handshake()
 {
-	MutexGuard guarder(lock);
-	ChannelVector::iterator it = ready_close_vector.begin();
-	ChannelVector::iterator ie = ready_close_vector.end();
-	for(; it != ie; ++it)
+	if(is_handshake_finish)
 	{
-		static epoll_event event;
-		Neter::GetInstance().Ctl(EPOLL_CTL_DEL, (*it)->fd, &event);
-		delete *it;
+		return true;
 	}
 
-	ready_close_vector.clear();
+	if(!ssl)
+	{
+		return false;
+	}
+
+	int r = 0;
+	if(!is_init_ssl)
+	{
+		r = SSL_set_fd(ssl, fd);
+		if(r != 1)
+		{
+			LOG_TRACE("SecureExchanger::Handshake, error=%d, info=%s", errno, strerror(errno));
+			return false;
+		}
+
+		SSL_set_accept_state(ssl);
+
+		is_init_ssl = true;
+	}
+
+	r = SSL_do_handshake(ssl);
+
+	if(r != 1)
+	{
+		int error = SSL_get_error(ssl, r);
+		if(error == SSL_ERROR_WANT_READ)
+		{
+			RegisterSendEvent();
+			return true;
+		}
+		else if(error == SSL_ERROR_WANT_WRITE)
+		{
+			RegisterRecvEvent();
+			return true;
+		}
+
+		LOG_TRACE("SecureExchanger::Handshake, error=%d, info=%s", errno, strerror(errno));
+		return false;
+	}
+
+	is_handshake_finish = true;
+
+	int error = SSL_get_error(ssl, r);
+
+	LOG_TRACE("SecureExchanger::Handshake, finish, error=%d", error);
+
+	return true;
 }
-*/
+
+/*
+ 
+   177 void handleDataRead(Channel* ch) {
+   178     char buf[4096];
+   179     int rd = SSL_read(ch->ssl_, buf, sizeof buf);
+   180     int ssle = SSL_get_error(ch->ssl_, rd);
+   181     if (rd > 0) {
+   182         const char* cont = "HTTP/1.1 200 OK\r\nConnection: Close\r\n\r\n";
+   183         int len1 = strlen(cont);
+   184         int wd = SSL_write(ch->ssl_, cont, len1);
+   185         log("SSL_write %d bytes\n", wd);
+   186         delete ch;
+   187     }
+   188     if (rd < 0 && ssle != SSL_ERROR_WANT_READ) {
+   189         log("SSL_read return %d error %d errno %d msg %s", rd, ssle, errno, strerror(errno));
+   190         delete ch;
+   191         return;
+   192     }
+   193     if (rd == 0) {
+   194         if (ssle == SSL_ERROR_ZERO_RETURN)
+   195             log("SSL has been shutdown.\n");
+   196         else
+   197             log("Connection has been aborted.\n");
+   198         delete ch;
+   199     }
+   200 }
+
+
+
+ * */
+
+void SecureExchanger::Recv()
+{
+	if(IsClose()) return;
+
+	if(is_handshake_finish == false)
+	{
+		Handshake();
+		return ;
+	}
+
+	int cnt = 0, per_cnt = 0, error = 0;
+	do
+	{
+		while((per_cnt = SSL_read(ssl, tmp_buff, TMP_BUFF_SIZE)) > 0)
+		{
+			ibuff.insert(ibuff.end(), tmp_buff, per_cnt);
+			cnt += per_cnt;
+			if(per_cnt < TMP_BUFF_SIZE)
+			{
+				return ;
+			}
+		}
+		error = SSL_get_error(ssl, per_cnt);
+	}while(per_cnt < 0 && error == SSL_ERROR_WANT_READ);
+
+	Close();
+
+	LOG_ERROR("SecureExchanger::Recv, cnt=%d, error=%d, errno=%d, info=%s", cnt, error, errno, strerror(errno));
+}
 

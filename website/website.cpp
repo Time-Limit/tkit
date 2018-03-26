@@ -21,6 +21,7 @@ int main(int argc, char **argv)
 	
 
 	HttpsSessionManager *https_session_manager = new HttpsSessionManager();
+	assert(https_session_manager->InitSSLData(website_config));
 	assert(Acceptor::Listen("0.0.0.0", default_https_port, *https_session_manager));
 	HttpSessionManager *http_session_manager = new HttpSessionManager();
 	assert(Acceptor::Listen("0.0.0.0", default_http_port, *http_session_manager));

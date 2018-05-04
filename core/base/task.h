@@ -51,6 +51,22 @@ public:
 	{}
 };
 
+class ConnectTask : public NormalTask
+{
+private:
+	SessionManager *manager;
+	std::string ip;
+	int port;
+public:
+	void Exec();
+
+	ConnectTask(SessionManager *_manager, const char *_ip, int _port)
+	: manager(_manager)
+	, ip(_ip)
+	, port(_port)
+	{}
+};
+
 class HttpRequestTask : public NormalTask
 {
 	SessionManager *manager;

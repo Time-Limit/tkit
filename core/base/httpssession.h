@@ -31,12 +31,20 @@ public:
 	bool InitSSLData(const Config &config);
 
 	SSL_CTX* GetSSLCTX() { return ssl_ctx; }
+
 private:
 	bool is_finish_init;
 	SSL_CTX *ssl_ctx;
 	
 	std::string cert;
 	std::string pkey;
+
+	static std::vector<Mutex> mutex_vec;
+
+private:
+	static unsigned long GetThreadID();
+	static int SetupThreadData();
+	static void OperateMutexVector(int mode, int n, const char * file, int line);
 };
 
 #endif

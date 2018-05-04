@@ -117,7 +117,7 @@ public:
 
 	static bool Listen(const char * ip, int port, SessionManager &manager);
 
-protected:
+private:
 	void Send(const void *, size_t) {}
 	void OnSend() {}
 	void Recv() {};
@@ -126,12 +126,21 @@ protected:
 	SessionManager &session_manager;
 };
 
-/*
- * as client
-class Connect() : public Channel final
+class Connector final
 {
-};
+public:
+	Connector(const char *_ip, int _port, SessionManager &_manager)
+	: ip(_ip)
+	, port(_port)
+	, session_manager(_manager)
+	{};
 
-*/
+	bool Connect();
+
+private:
+	const std::string ip;
+	int port;
+	SessionManager &session_manager;
+};
 
 #endif

@@ -11,6 +11,7 @@ OctetsStream& HttpResponse::Deserialize(OctetsStream &os)
 		PARSE_LINE = 0,
 		PARSE_HEADER,
 		PARSE_BODY,
+		PARSE_CHUNK,
 		PARSE_DONE,
 	};
 
@@ -180,6 +181,7 @@ OctetsStream& HttpResponse::Serialize(OctetsStream &os) const
 	}
 
 	os << '\r' << '\n';
+
 	os.Append(body.c_str(), body.c_str() + body.size());
 
 	return os;

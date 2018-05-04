@@ -172,3 +172,12 @@ void HandleNetProtocolTask::Exec()
 	delete protocol;
 	protocol = nullptr;
 }
+
+void ConnectTask::Exec()
+{
+	Connector connect(ip.c_str(), port, *manager);
+	if(connect.Connect())
+	{
+		return ;
+	}
+}

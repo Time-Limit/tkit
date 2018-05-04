@@ -4,6 +4,8 @@
 #include "openssl/ssl.h"
 #include "channel.h"
 
+std::vector<Mutex> HttpsSessionManager::mutex_vec;
+
 HttpsSession::HttpsSession(int fd)
 : HttpSession(fd)
 {}
@@ -33,8 +35,8 @@ bool HttpsSessionManager::InitSSLData(const Config &config)
 	SSL_library_init ();
 	ssl_ctx = SSL_CTX_new (SSLv23_method ());
 
-	if(1 != SSL_CTX_use_certificate_file(ssl_ctx, cert_path.c_str(), SSL_FILETYPE_PEM)
-		|| 1 != SSL_CTX_use_PrivateKey_file(ssl_ctx, pkey_path.c_str(), SSL_FILETYPE_PEM)
+	if(1 != SSL_CTX_use_certificate_file(ssl_ctx, cert_path.c_str(), X509_FILETYPE_PEM)
+		|| 1 != SSL_CTX_use_PrivateKey_file(ssl_ctx, pkey_path.c_str(), X509_FILETYPE_PEM)
 		|| 1 != SSL_CTX_check_private_key(ssl_ctx))
 	{
 		char info[1024] = {0};
@@ -47,7 +49,40 @@ bool HttpsSessionManager::InitSSLData(const Config &config)
 		return false;
 	}
 
+	if(1 != SetupThreadData())
+	{
+		return false;
+	}
+
+
 	is_finish_init = true;
 
 	return true;
+}
+
+unsigned long HttpsSessionManager::GetThreadID()
+{
+	return pthread_self();
+}
+
+int HttpsSessionManager::SetupThreadData()
+{
+	size_t n = CRYPTO_num_locks();
+	mutex_vec.resize(n);
+	CRYPTO_set_id_callback(GetThreadID);
+	CRYPTO_set_locking_callback(OperateMutexVector);
+
+	return 1;
+}
+
+void HttpsSessionManager::OperateMutexVector(int mode, int n, const char *file, int line)
+{
+	if(mode & CRYPTO_LOCK)
+	{
+		mutex_vec[n].Lock();
+	}
+	else
+	{
+		mutex_vec[n].UnLock();
+	}
 }

@@ -35,7 +35,7 @@ void Channel::Close()
 void Exchanger::Send(const void * buf, size_t size)
 {
 	if(IsClose()) return ;
-	static const size_t OBUFF_SIZE_LIMIT = 64*1024*1024; 
+	static const size_t OBUFF_SIZE_LIMIT = 256*1024*1024; 
 	MutexGuard guarder(olock);
 	if(obuff.size() + size > OBUFF_SIZE_LIMIT)
 	{
@@ -219,6 +219,25 @@ bool Acceptor::Listen(const char * ip, int port, SessionManager &manager)
 	return true;
 }
 
+bool Connector::Connect()
+{
+	int socketfd = socket(AF_INET,SOCK_STREAM,0);
+	struct sockaddr_in sockaddr;
+	memset(&sockaddr,0,sizeof(sockaddr));
+	sockaddr.sin_family = AF_INET;
+	sockaddr.sin_port = htons(port);
+	inet_pton(AF_INET,ip.c_str(), &sockaddr.sin_addr);
+	if( (connect(socketfd,(struct sockaddr*)&sockaddr,sizeof(sockaddr))) < 0 )
+	{
+		printf("Connector::Connect, ip=%s, port=%d, connect error %s errno: %d\n", ip.c_str(), port, strerror(errno),errno);
+		return false;
+	}
+
+	session_manager.OnConnect(socketfd);
+
+	return true;
+}
+
 void SecureExchanger::OnSend()
 {
 
@@ -312,37 +331,6 @@ bool SecureExchanger::Handshake()
 
 	return true;
 }
-
-/*
- 
-   177 void handleDataRead(Channel* ch) {
-   178     char buf[4096];
-   179     int rd = SSL_read(ch->ssl_, buf, sizeof buf);
-   180     int ssle = SSL_get_error(ch->ssl_, rd);
-   181     if (rd > 0) {
-   182         const char* cont = "HTTP/1.1 200 OK\r\nConnection: Close\r\n\r\n";
-   183         int len1 = strlen(cont);
-   184         int wd = SSL_write(ch->ssl_, cont, len1);
-   185         log("SSL_write %d bytes\n", wd);
-   186         delete ch;
-   187     }
-   188     if (rd < 0 && ssle != SSL_ERROR_WANT_READ) {
-   189         log("SSL_read return %d error %d errno %d msg %s", rd, ssle, errno, strerror(errno));
-   190         delete ch;
-   191         return;
-   192     }
-   193     if (rd == 0) {
-   194         if (ssle == SSL_ERROR_ZERO_RETURN)
-   195             log("SSL has been shutdown.\n");
-   196         else
-   197             log("Connection has been aborted.\n");
-   198         delete ch;
-   199     }
-   200 }
-
-
-
- * */
 
 void SecureExchanger::Recv()
 {

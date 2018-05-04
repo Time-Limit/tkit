@@ -26,8 +26,13 @@ int main(int argc, char **argv)
 	HttpSessionManager *http_session_manager = new HttpSessionManager();
 	assert(Acceptor::Listen("0.0.0.0", default_http_port, *http_session_manager));
 	ThreadPool::GetInstance().AddTask(new WebsiteTask());
+
+	ThreadPool::GetInstance().AddTask(new ConnectTask(http_session_manager, "127.0.0.1", 80));
 	
 	ThreadPool::GetInstance().Start();
+
+	delete https_session_manager;
+	delete http_session_manager;
 
 	return 0;
 }

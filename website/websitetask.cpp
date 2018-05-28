@@ -34,7 +34,15 @@ void SourceReq::ConstructResponse()
 	response.body = File(default_base_folder + request.url).GetContent();
 	if(response.body.size() == 0)
 	{
-		ResetHttpResponseStatus(response, HTTP_SC_NOT_FOUND);
+		response.body = File(default_base_folder + request.url + default_file_name).GetContent();
+		if(response.body.size() > 0)
+		{
+			request.url += default_file_name;
+		}
+		else
+		{
+			ResetHttpResponseStatus(response, HTTP_SC_NOT_FOUND);
+		}
 	}
 }
 

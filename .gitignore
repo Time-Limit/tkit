@@ -4,6 +4,5 @@ log.txt
 website/website
 .git-credentials
 core/base/Makefile
-website/source/bigfile
-website/source/.well-known
-website/source/cert
+core/certbot
+website/blog/

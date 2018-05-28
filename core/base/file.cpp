@@ -43,6 +43,13 @@ File::File(const std::string &_name, int _flag, mode_t _mode, bool readall)
 		return ;
 	}
 
+	int len = lseek(fd, 0L, SEEK_END);
+
+	if(len < 0)
+	{
+		return ;
+	}
+
 
 	if(readall)
 	{

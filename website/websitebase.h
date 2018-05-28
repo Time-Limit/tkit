@@ -6,5 +6,6 @@
 extern unsigned int default_http_port; 
 extern unsigned int default_https_port;
 extern std::string default_base_folder;
+extern std::string default_file_name;
 
 #endif

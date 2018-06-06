@@ -154,6 +154,7 @@ void HttpRequestTask::CompleteResponse()
 	TrySetHeader(response, HTTP_CONTENT_TYPE, GetMimeType(GetFileSuffixName(request.url)));
 	TrySetHeader(response, HTTP_CONTENT_LENGTH, tostring(response.body.size()));
 
+	// 2018-06-06 开始支持 Keep-Alive
 	// 暂不支持Keep-Alive Orz
 	// 但是服务器不会主动断连，所以先注释掉吧
 	//ForceSetHeader(response, HTTP_CONNECTION, "close");

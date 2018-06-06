@@ -1,5 +1,5 @@
 ConfigTable = {
-	["name"] = "idon'tknow",
-	["password"] = "idon'tknow",
+	["name"] = "lidaidai",
+	["password"] = "mimayeshilidaidai",
 	["goal-url"] = "http://www.baidu.com/",
 };

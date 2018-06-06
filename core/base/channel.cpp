@@ -35,6 +35,9 @@ void Channel::Close()
 void Exchanger::Send(const void * buf, size_t size)
 {
 	if(IsClose()) return ;
+
+	LOG_ERROR("Exchanger::Send, size=%ld\n", size);
+
 	static const size_t OBUFF_SIZE_LIMIT = 256*1024*1024; 
 	MutexGuard guarder(olock);
 	if(obuff.size() + size > OBUFF_SIZE_LIMIT)
@@ -45,6 +48,7 @@ void Exchanger::Send(const void * buf, size_t size)
 	}
 	obuff.insert(obuff.end(), buf, size);
 	RegisterSendEvent();
+	LOG_ERROR("Exchanger::Send, all=%ld\n", obuff.size());
 }
 
 void Exchanger::OnSend()
@@ -69,6 +73,7 @@ void Exchanger::OnSend()
 	}
 	if((size_t)per_cnt == obuff.size() - cur_cursor)
 	{
+		LOG_ERROR("Exchanger::Send, all send, cur_cursor=%ld, per_cnt=%d, size=%ld\n", cur_cursor, per_cnt, obuff.size());
 		cur_cursor = 0;
 		obuff.clear();
 		return ;

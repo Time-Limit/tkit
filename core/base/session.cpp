@@ -102,6 +102,7 @@ void HttpSession::OnDataIn()
 	try
 	{
 		os >> *req >> OctetsStream::COMMIT;
+		recv_data = os.GetData();
 		ThreadPool::GetInstance().AddTask(new HandleNetProtocolTask(GetManager(), ID(), req));
 	}
 	catch(OctetsStream::OSException e)

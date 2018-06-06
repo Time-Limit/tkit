@@ -49,11 +49,7 @@ bool HttpsSessionManager::InitSSLData(const Config &config)
 		return false;
 	}
 
-	if(1 != SetupThreadData())
-	{
-		return false;
-	}
-
+	SetupThreadData();
 
 	is_finish_init = true;
 
@@ -65,24 +61,26 @@ unsigned long HttpsSessionManager::GetThreadID()
 	return pthread_self();
 }
 
-int HttpsSessionManager::SetupThreadData()
+void HttpsSessionManager::SetupThreadData()
 {
 	size_t n = CRYPTO_num_locks();
 	mutex_vec.resize(n);
 	CRYPTO_set_id_callback(GetThreadID);
 	CRYPTO_set_locking_callback(OperateMutexVector);
 
-	return 1;
+	LOG_TRACE("HttpsSessionManager::SetupThreadData, number of lock is %ld\n", n);
 }
 
 void HttpsSessionManager::OperateMutexVector(int mode, int n, const char *file, int line)
 {
 	if(mode & CRYPTO_LOCK)
 	{
+		LOG_TRACE("HttpsSessionManager::OperateMutexVector, LOCK, index=%d", n);
 		mutex_vec[n].Lock();
 	}
 	else
 	{
+		LOG_TRACE("HttpsSessionManager::OperateMutexVector, UNLOCK, index=%d", n);
 		mutex_vec[n].UnLock();
 	}
 }

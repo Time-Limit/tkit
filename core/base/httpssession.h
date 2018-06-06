@@ -43,7 +43,7 @@ private:
 
 private:
 	static unsigned long GetThreadID();
-	static int SetupThreadData();
+	static void SetupThreadData();
 	static void OperateMutexVector(int mode, int n, const char * file, int line);
 };
 

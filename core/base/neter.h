@@ -13,7 +13,6 @@
 #include <assert.h>
 #include <set>
 #include "octets.h"
-#include "allocer.h"
 
 class Channel;
 

@@ -8,6 +8,9 @@
 class Task
 {
 public:
+	typedef flag_t unsigned int;
+
+	virtual flag_t GetFlag() { return flag_t(0); }
 	virtual void Exec() = 0;
 	virtual ~Task() = default;
 };
@@ -42,6 +45,9 @@ private:
 	session_id_t sid;
 	Protocol *protocol;
 public:
+
+	virtual flag_t GetFlag() { return flag_t(sid); }
+
 	void Exec();
 
 	HandleNetProtocolTask(SessionManager *_manager, session_id_t _sid, Protocol *_protocol)

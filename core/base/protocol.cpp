@@ -4,6 +4,8 @@
 #include "session.h"
 #include "log.h"
 
+using namespace TCORE;
+
 OctetsStream& HttpResponse::Deserialize(OctetsStream &os)
 {
 	enum PARSE_STATE

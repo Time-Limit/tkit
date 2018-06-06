@@ -14,6 +14,9 @@
 #include <set>
 #include "octets.h"
 
+namespace TCORE
+{
+
 class Channel;
 
 class Neter
@@ -43,5 +46,7 @@ private:
 
 	ChannelSet channel_set;
 };
+
+}
 
 #endif

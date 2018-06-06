@@ -5,6 +5,9 @@
 #include "session.h"
 #include "protocol.h"
 
+namespace TCORE
+{
+
 class Task
 {
 public:
@@ -112,5 +115,7 @@ public:
 		CompleteResponse();
 	}
 };
+
+}
 
 #endif

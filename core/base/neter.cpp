@@ -5,6 +5,8 @@
 #include "channel.h"
 #include "signal.h"
 
+using namespace TCORE;
+
 Neter& Neter::GetInstance()
 {
 	static Neter _instance;

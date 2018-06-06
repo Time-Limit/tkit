@@ -4,6 +4,8 @@
 #include "openssl/ssl.h"
 #include "channel.h"
 
+using namespace TCORE;
+
 std::vector<Mutex> HttpsSessionManager::mutex_vec;
 
 HttpsSession::HttpsSession(int fd)

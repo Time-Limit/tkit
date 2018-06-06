@@ -15,6 +15,9 @@ extern "C"
 #include "lauxlib.h"
 }
 
+namespace TCORE
+{
+
 class Key;
 class Value;
 class Config;
@@ -93,6 +96,25 @@ private:
 	NumKey num;
 	StrKey str;
 };
+
+inline bool operator< (const Key &l, const Key &r)
+{
+	if(l.type != r.type)
+	{
+		return l.type < r.type;
+	}
+
+	switch(l.type)
+	{
+	case Key::NUMBER:
+		return l.Num() < r.Num();
+	case Key::STRING:
+		return l.Str() < r.Str();
+	}
+	//should never come here
+	throw ConfigException(KEY_TYPE_INVALID);
+	return false;
+}
 
 class Table
 {
@@ -225,5 +247,7 @@ public:
 		return NULL;
 	}
 };
+
+}
 
 #endif

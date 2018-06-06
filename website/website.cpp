@@ -9,6 +9,14 @@
 #include "httpssession.h"
 #include <iostream>
 
+using TCORE::Protocol;
+using TCORE::Config;
+using TCORE::ConfigManager;
+using TCORE::HttpsSessionManager;
+using TCORE::HttpSessionManager;
+using TCORE::Acceptor;
+using TCORE::ThreadPool;
+
 int main(int argc, char **argv)
 {
 	ConfigManager::GetInstance().Reset({"website"});

@@ -1,24 +1,7 @@
 #include "config.h"
 #include "log.h"
 
-bool operator< (const Key &l, const Key &r)
-{
-	if(l.type != r.type)
-	{
-		return l.type < r.type;
-	}
-
-	switch(l.type)
-	{
-	case Key::NUMBER:
-		return l.Num() < r.Num();
-	case Key::STRING:
-		return l.Str() < r.Str();
-	}
-	//should never come here
-	throw ConfigException(KEY_TYPE_INVALID);
-	return false;
-}
+using namespace TCORE;
 
 const Value& Value::operator[](const Key &k) const
 {

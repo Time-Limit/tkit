@@ -16,6 +16,10 @@
 //      MD5(std::string).hexdigest()  
 //  
 // assumes that char is 8 bit and int is 32 bit  
+
+namespace TCORE
+{
+
 class MD5  
 {  
 public:  
@@ -58,5 +62,7 @@ private:
 };  
   
 std::string md5(const std::string str);  
+
+};
   
 #endif

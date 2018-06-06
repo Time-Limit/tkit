@@ -7,16 +7,15 @@
 #include "file.h"
 #include <stdlib.h>
 
+using TCORE::ThreadPool;
+using TCORE::Neter;
+
 void WebsiteTask::Exec()
 {
 	signal(SIGPIPE, SIG_IGN);
 	const ThreadPool *tp = &ThreadPool::GetInstance();
 	if(tp->IsStart()) Neter::GetInstance().Wait(1000);
 	else sleep(1);
-	//while(tp->IsStart())
-	//{
-	//	Neter::GetInstance().Wait(1000);
-	//}
 	ThreadPool::GetInstance().AddTask(new WebsiteTask());
 }
 

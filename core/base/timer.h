@@ -3,6 +3,9 @@
 
 #include <time.h>
 
+namespace TCORE
+{
+
 class Timer
 {
 public:
@@ -11,5 +14,7 @@ public:
 		return time(0);
 	}
 };
+
+}
 
 #endif

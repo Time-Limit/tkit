@@ -6,6 +6,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+using namespace TCORE;
+
 /*
 File::File(const std::string& n) : name(n)
 {

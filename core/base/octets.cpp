@@ -1,6 +1,8 @@
 #include "octets.h"
 #include "protocol.h"
 
+using namespace TCORE;
+
 Octets::Rep Octets::Rep::null = { 0, 0, 1 };
 
 const OctetsStream::Start  OctetsStream::START;

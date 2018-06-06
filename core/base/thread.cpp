@@ -1,5 +1,7 @@
 #include "thread.h"
 
+using namespace TCORE;
+
 void* Thread::Run(void *task)
 {
 	if(task) ((Task*)task)->Exec();

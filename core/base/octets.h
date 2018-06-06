@@ -6,6 +6,9 @@
 #include <malloc.h>
 #include <string.h>
 
+namespace TCORE
+{
+
 class Protocol;
 
 inline void *fmemmove(void *dest, const void *src, size_t n)
@@ -328,6 +331,8 @@ public:
 		return *this;
 	}
 };
+
+}
 
 #endif
 

@@ -5,6 +5,8 @@
 #include "thread.h"
 #include "basetool.h"
 
+using namespace TCORE;
+
 bool HttpRequestTask::IsValidEscapeChar(unsigned int c)
 {
 	if('0' <= c && c <= '9') return true;

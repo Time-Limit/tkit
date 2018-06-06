@@ -6,6 +6,9 @@
 #include <sstream>
 #include <map>
 
+namespace TCORE
+{
+
 class SessionManager;
 class OctetsStream;
 
@@ -56,5 +59,7 @@ struct HttpResponse : public Protocol
 	virtual OctetsStream& Deserialize(OctetsStream &os) override;
 	virtual OctetsStream& Serialize(OctetsStream &os) const override;
 };
+
+}
 
 #endif

@@ -22,6 +22,9 @@
 #include "openssl/ssl.h"
 #include "openssl/err.h"
 
+namespace TCORE
+{
+
 class Channel
 {
 public:
@@ -142,5 +145,7 @@ private:
 	int port;
 	SessionManager &session_manager;
 };
+
+}
 
 #endif

@@ -4,6 +4,8 @@
 #include "thread.h"
 #include <arpa/inet.h>
 
+using namespace TCORE;
+
 Channel::Channel(int f)
 	: fd(f)
 	, ready_close(false)

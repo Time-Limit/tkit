@@ -7,6 +7,9 @@
 #include <map>
 #include <functional>
 
+namespace TCORE
+{
+
 class Exchanger;
 class SessionManager;
 class HttpProtocol;
@@ -96,6 +99,8 @@ public:
 	HttpSessionManager() : SessionManager() {}
 	HttpSessionManager(ProtocolHandler ph) : SessionManager(ph) {}
 	virtual void OnConnect(int fd) override;
+};
+
 };
 
 #endif

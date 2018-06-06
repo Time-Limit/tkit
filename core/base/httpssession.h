@@ -8,6 +8,9 @@
 #include "openssl/ssl.h"
 #include "openssl/err.h"
 
+namespace TCORE
+{
+
 class HttpsSession : public HttpSession
 {
 public:
@@ -53,5 +56,7 @@ private:
 	static void SetupThreadData();
 	static void OperateMutexVector(int mode, int n, const char * file, int line);
 };
+
+}
 
 #endif

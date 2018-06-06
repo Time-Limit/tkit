@@ -8,6 +8,11 @@
 #define except_status_code(res, sc) \
 	if(((res).status) != (sc)) { return; }
 
+using TCORE::NormalTask;
+using TCORE::HttpRequestTask;
+using TCORE::SessionManager;
+using TCORE::HttpRequest;
+
 class WebsiteTask : public NormalTask
 {
 public:

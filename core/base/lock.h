@@ -6,6 +6,9 @@
 #include <errno.h>
 #include <assert.h>
 
+namespace TCORE
+{
+
 class Mutex
 {
 	pthread_mutex_t m_lock;
@@ -89,5 +92,7 @@ public:
 	}
 };
 typedef LockGuard<SpinLock> SpinLockGuard;
+
+}
 
 #endif

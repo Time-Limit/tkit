@@ -14,6 +14,9 @@
 #include "task.h"
 #include "log.h"
 
+namespace TCORE
+{
+
 class ThreadPool;
 
 class ThreadTask : public Task
@@ -163,5 +166,7 @@ private:
 	ThreadPool();
 	~ThreadPool();
 };
+
+}
 
 #endif

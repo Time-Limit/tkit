@@ -4,6 +4,8 @@
 #include "thread.h"
 #include "protocol.h"
 
+using namespace TCORE;
+
 Session::Session(int fd)
 : sid(fd)
 , exchanger(nullptr)

@@ -33,7 +33,7 @@ struct HttpRequest : public Protocol
 	HttpRequest(const HttpRequest &) = default;
 	HttpRequest& operator=(const HttpRequest&) = default;
 
-	virtual void Handle(SessionManager *manager, session_id_t sid) override;
+	virtual void Handle(SessionManager *manager, session_id_t sid) override {}
 	virtual OctetsStream& Deserialize(OctetsStream &os) override;
 	virtual OctetsStream& Serialize(OctetsStream &os) const override;
 };
@@ -52,7 +52,7 @@ struct HttpResponse : public Protocol
 	HttpResponse(const HttpResponse &) = default;
 	HttpResponse& operator=(const HttpResponse&) = default;
 
-	virtual void Handle(SessionManager *manager, session_id_t sid) {}
+	virtual void Handle(SessionManager *manager, session_id_t sid) override {}
 	virtual OctetsStream& Deserialize(OctetsStream &os) override;
 	virtual OctetsStream& Serialize(OctetsStream &os) const override;
 };

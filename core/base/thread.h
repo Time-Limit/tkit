@@ -28,11 +28,15 @@ private:
 class Thread
 {
 public:
-	Thread(Task *task);
+	Thread(Task *task, flag_t f);
 	~Thread();
+
+	flag_t GetFlag() const { return flag; }
+	pthread_t GetThreadID() const { return tid; }
 	
 private:
 	pthread_t tid;
+	flag_t flag;
 
 	static void * Run(void *p);
 };
@@ -48,13 +52,14 @@ public:
 		
 		enum INNER_POOL_THREAD_COUNT
 		{
-			NORMAL_THREAD_COUNT = 2,
+			NORMAL_THREAD_COUNT = 10,
 		};
 
 		typedef unsigned char thread_count_t;
 		typedef unsigned int  thread_id_t;
 		typedef std::map<thread_id_t, Thread *> Pool;
 		typedef std::queue<LogicTask *> Queue;
+		typedef std::map<thread_id_t, flag_t> FlagMap;
 
 		InnerPool(LogicTask::TASK_TYPE t);
 		~InnerPool();
@@ -66,10 +71,10 @@ public:
 		void Notify() { pthread_cond_signal(&cond); } 
 		void NotifyAll() { pthread_cond_broadcast(&cond); }
 
-		bool IsEmpty() { return tasks.empty(); }
+		bool IsEmpty(pthread_t ptid) { return tasks[TransThreadID(ptid)].empty(); }
 
 		bool AddTask(LogicTask *task);
-		LogicTask* GetTaskWithoutLock();
+		LogicTask* GetTaskWithoutLock(pthread_t ptid);
 
 		static thread_count_t GetThreadCount(LogicTask::TASK_TYPE t)
 		{
@@ -81,6 +86,22 @@ public:
 
 			return 0;
 		}
+	private:
+		size_t HashTaskFlag(flag_t flag) const
+		{
+			return flag % NORMAL_THREAD_COUNT;
+		}
+
+		flag_t TransThreadID(pthread_t ptid) const
+		{
+			FlagMap::const_iterator cit = flag_map.find(ptid);
+			if(cit == flag_map.end())
+			{
+				assert(false);
+				return flag_t(0);
+			}
+			return cit->second;
+		}
 
 	private:
 
@@ -91,7 +112,9 @@ public:
 		pthread_mutex_t lock;
 		pthread_cond_t cond;
 
-		Queue tasks;
+		Queue tasks[NORMAL_THREAD_COUNT];
+
+		FlagMap flag_map;
 
 		Pool pool;
 	};
@@ -115,10 +138,10 @@ public:
 
 	void InnerNotify(LogicTask::TASK_TYPE type) { inner_pools[type].Notify(); }
 	void InnerNotifyAll(LogicTask::TASK_TYPE type) { inner_pools[type].NotifyAll(); }
-	bool InnerIsEmpty(LogicTask::TASK_TYPE type) { return inner_pools[type].IsEmpty(); }
+	bool InnerIsEmpty(LogicTask::TASK_TYPE type, pthread_t ptid) { return inner_pools[type].IsEmpty(ptid); }
 
 	bool AddTask(LogicTask *task) { return inner_pools[task->GetType()].AddTask(task); }
-	LogicTask* GetTaskWithoutLock(LogicTask::TASK_TYPE type) { return inner_pools[type].GetTaskWithoutLock(); }
+	LogicTask* GetTaskWithoutLock(LogicTask::TASK_TYPE type, pthread_t ptid) { return inner_pools[type].GetTaskWithoutLock(ptid); }
 
 	static void StopFunc(int)
 	{
@@ -140,53 +163,5 @@ private:
 	ThreadPool();
 	~ThreadPool();
 };
-
-/*
-class ThreadPool
-{
-public:
-	friend void* HandleTask(void*);
-
-	enum THREAD_POOL_CONFIG
-	{
-		TP_MAX_SIZE = 4,
-	};
-
-	ThreadPool();
-	~ThreadPool();
-
-	typedef unsigned int thread_id_t;
-	typedef std::map<thread_id_t, Thread *> Pool;
-	typedef std::queue<Task *> Queue;
-
-	bool AddTask(Task *task);
-
-	void Start();
-	
-	static ThreadPool& GetInstance()
-	{
-		static ThreadPool instance;
-		return instance;
-	}
-	
-	bool IsStart() const { return start; }
-	bool IsInit() const { return init; }
-
-private:
-
-	Pool pool;
-	Queue  tasks;
-
-	bool quit;
-	pthread_mutex_t lock;
-	pthread_cond_t cond;
-	
-	Task * GetTaskWithoutLock();
-
-	bool start;
-	bool init;
-
-};
-*/
 
 #endif

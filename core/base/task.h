@@ -8,8 +8,6 @@
 class Task
 {
 public:
-	typedef unsigned int flag_t;
-
 	virtual flag_t GetFlag() { return flag_t(0); }
 	virtual void Exec() = 0;
 	virtual ~Task() = default;

@@ -75,12 +75,10 @@ void HttpsSessionManager::OperateMutexVector(int mode, int n, const char *file, 
 {
 	if(mode & CRYPTO_LOCK)
 	{
-		LOG_TRACE("HttpsSessionManager::OperateMutexVector, LOCK, index=%d", n);
 		mutex_vec[n].Lock();
 	}
 	else
 	{
-		LOG_TRACE("HttpsSessionManager::OperateMutexVector, UNLOCK, index=%d", n);
 		mutex_vec[n].UnLock();
 	}
 }

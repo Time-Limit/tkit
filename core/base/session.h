@@ -5,6 +5,7 @@
 #include "lock.h"
 #include "exptype.h"
 #include <map>
+#include <functional>
 
 class Exchanger;
 class SessionManager;
@@ -55,6 +56,10 @@ private:
 class SessionManager
 {
 public:
+	typedef std::function<void (SessionManager*, session_id_t, Protocol&)> ProtocolHandler;
+public:
+	SessionManager();
+	SessionManager(ProtocolHandler ph);
 	virtual ~SessionManager();
 
 	typedef std::map<session_id_t, Session*> SessionMap;
@@ -64,6 +69,8 @@ public:
 	void Send(session_id_t sid, const char *data, size_t size);
 	void Send(session_id_t sid, const Protocol &p);
 	void DelSession(Session *session);
+	ProtocolHandler GetProtocolHandler() const { return protocol_handler; }
+	void SetProtocolHandler(ProtocolHandler p) { protocol_handler = p; }
 
 protected:
 	void AddSession(Session *session);
@@ -71,6 +78,7 @@ protected:
 private:
 	Mutex session_map_lock;
 	SessionMap session_map;
+	ProtocolHandler  protocol_handler;
 };
 
 class HttpSession : public Session
@@ -85,6 +93,8 @@ private:
 class HttpSessionManager : public SessionManager
 {
 public:
+	HttpSessionManager() : SessionManager() {}
+	HttpSessionManager(ProtocolHandler ph) : SessionManager(ph) {}
 	virtual void OnConnect(int fd) override;
 };
 

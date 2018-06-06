@@ -5,7 +5,7 @@ core_objs = ../core/base/neter.o ../core/base/thread.o ../core/base/log.o ../cor
 	    ../core/base/md5.o ../core/base/session.o  ../core/base/channel.o ../core/base/protocol.o \
 	    ../core/base/httpssession.o
 
-thief_objs = website.o websitetask.o websitebase.o
+thief_objs = thief.o
 
 lib_objs = ../core/lib/lua/liblua.a -lssl -lcrypto
 

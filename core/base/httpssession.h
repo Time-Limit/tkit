@@ -24,9 +24,16 @@ public:
 	virtual void OnConnect(int fd) override;
 
 	HttpsSessionManager()
-	: is_finish_init(false)
+	: SessionManager()
+	, is_finish_init(false)
 	, ssl_ctx(nullptr)
 	{}
+
+	HttpsSessionManager(ProtocolHandler ph)
+	: HttpsSessionManager()
+	{
+		SetProtocolHandler(ph);
+	}
 
 	bool InitSSLData(const Config &config);
 

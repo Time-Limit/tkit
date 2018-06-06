@@ -7,21 +7,17 @@
 #include "file.h"
 #include <stdlib.h>
 
-void HttpRequest::Handle(SessionManager *manager, session_id_t sid)
-{
-	SourceReq *req = new SourceReq(manager, sid, *this);
-	req->Exec();
-	delete req;
-}
-
 void WebsiteTask::Exec()
 {
 	signal(SIGPIPE, SIG_IGN);
 	const ThreadPool *tp = &ThreadPool::GetInstance();
-	while(tp->IsStart())
-	{
-		Neter::GetInstance().Wait(1000);
-	}
+	if(tp->IsStart()) Neter::GetInstance().Wait(1000);
+	else sleep(1);
+	//while(tp->IsStart())
+	//{
+	//	Neter::GetInstance().Wait(1000);
+	//}
+	ThreadPool::GetInstance().AddTask(new WebsiteTask());
 }
 
 void SourceReq::LogicCheckRequest()

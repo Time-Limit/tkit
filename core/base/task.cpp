@@ -169,7 +169,11 @@ void HttpRequestTask::CompleteResponse()
 
 void HandleNetProtocolTask::Exec()
 {
-	protocol->Handle(manager, sid);
+	SessionManager::ProtocolHandler ph = manager->GetProtocolHandler();
+	if(ph)
+	{
+		ph(manager, sid, *protocol);
+	}
 	delete protocol;
 	protocol = nullptr;
 }

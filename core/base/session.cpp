@@ -34,6 +34,14 @@ HttpSession::HttpSession(int fd)
 : Session(fd)
 {}
 
+SessionManager::SessionManager(ProtocolHandler ph)
+: protocol_handler(ph)
+{}
+
+SessionManager::SessionManager()
+: SessionManager([](SessionManager *manager, session_id_t sid, Protocol& p) { p.Handle(manager, sid); })
+{}
+
 void SessionManager::DelSession(Session *session)
 {
 	if(session)

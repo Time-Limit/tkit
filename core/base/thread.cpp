@@ -15,7 +15,8 @@ void ThreadTask::Exec()
 		sleep(1);
 	}
 	size_t work_count = 0;
-	LOG_TRACE("thread 0x%lx will work.", pthread_self());
+	pthread_t ptid = pthread_self();
+	LOG_TRACE("thread 0x%lx will work.", ptid);
 	for(;;)
 	{
 		pool->InnerLock(type);
@@ -23,16 +24,16 @@ void ThreadTask::Exec()
 		if(pool->IsQuit())
 		{
 			pool->InnerUnlock(type);
-			LOG_TRACE("thread 0x%lx will quit, work_count=%zu.", pthread_self(), work_count);
+			LOG_TRACE("thread 0x%lx will quit, work_count=%zu.", ptid, work_count);
 			pthread_exit(NULL);
 			return ;
 		}
 
-		if(pool->IsQuit() == false && pool->InnerIsEmpty(type))
+		if(pool->IsQuit() == false && pool->InnerIsEmpty(type, ptid))
 		{
 			pool->InnerWait(type);
 		}
-		Task *task = pool->GetTaskWithoutLock(type);
+		Task *task = pool->GetTaskWithoutLock(type, ptid);
 		pool->InnerUnlock(type);
 		if(task)
 		{
@@ -44,7 +45,8 @@ void ThreadTask::Exec()
 	return ;
 }
 
-Thread::Thread(Task *task)
+Thread::Thread(Task *task, flag_t f)
+: flag(f)
 {
 	int res = pthread_create(&tid, NULL, Run, (void *)task);
 	if(res)
@@ -79,12 +81,13 @@ ThreadPool::InnerPool::~InnerPool()
 	pthread_cond_destroy(&cond);
 }
 
-LogicTask *ThreadPool::InnerPool::GetTaskWithoutLock()
+LogicTask *ThreadPool::InnerPool::GetTaskWithoutLock(pthread_t ptid)
 {
-	if(tasks.empty()) {return NULL;}
+	flag_t flag = TransThreadID(ptid);
+	if(tasks[flag].empty()) {return NULL;}
 
-	LogicTask *tmp = tasks.front();
-	tasks.pop();
+	LogicTask *tmp = tasks[flag].front();
+	tasks[flag].pop();
 	return tmp;
 }
 
@@ -92,8 +95,6 @@ bool ThreadPool::InnerPool::AddTask(LogicTask *task)
 {
 	if(!task) { return false; }
 	
-	bool need_notify = false;
-
 	pthread_mutex_lock(&lock);
 
 	if(ThreadPool::GetInstance().IsQuit())
@@ -101,13 +102,13 @@ bool ThreadPool::InnerPool::AddTask(LogicTask *task)
 		pthread_mutex_unlock(&lock);
 		return false;
 	}
-	if(!tasks.size()) need_notify = true;
-	tasks.push(task);
+
+	tasks[HashTaskFlag(task->GetFlag())].push(task);
 	
 	pthread_mutex_unlock(&lock);
 
 	if(!ThreadPool::GetInstance().IsStart()) { return true; }
-	if(need_notify) pthread_cond_signal(&cond);
+	pthread_cond_broadcast(&cond);
 
 	return true;
 }
@@ -147,6 +148,7 @@ ThreadPool::InnerPool::InnerPool(LogicTask::TASK_TYPE t)
 {
 	for(thread_count_t i = 0; i < thread_count; ++i)
 	{
-		pool[i] = new Thread(new ThreadTask(type));
+		pool[i] = new Thread(new ThreadTask(type), i);
+		flag_map[pool[i]->GetThreadID()] = pool[i]->GetFlag();
 	}
 }

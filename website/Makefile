@@ -13,7 +13,7 @@ objs = $(core_objs) $(website_objs)
 
 inl = -I../core/base -I../core/lib/lua -I../core/inl -I.
 
-flag = -D_LITTLE_ENDIAN_
+flag = -D_LITTLE_ENDIAN_ -D_NORMAL_THREAD_COUNT_=8
 
 args = -Wall -g -std=c++11
 

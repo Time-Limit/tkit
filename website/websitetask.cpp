@@ -71,10 +71,10 @@ void RedirectReq::ConstructResponse()
 	size_t pos = host.find(':');
 	if(pos == std::string::npos)
 	{
-		ForceSetHeader(response, HTTP_LOCATION, "http://" + host + ':' + tostring(default_https_port));
+		ForceSetHeader(response, HTTP_LOCATION, "https://" + host + ':' + tostring(default_https_port));
 	}
 	else
 	{
-		ForceSetHeader(response, HTTP_LOCATION, "http://" + host.substr(0, pos) + ':' + tostring(default_https_port));
+		ForceSetHeader(response, HTTP_LOCATION, "https://" + host.substr(0, pos) + ':' + tostring(default_https_port));
 	}
 }

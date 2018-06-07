@@ -55,7 +55,10 @@ public:
 		
 		enum INNER_POOL_THREAD_COUNT
 		{
-			NORMAL_THREAD_COUNT = 10,
+#ifndef _NORMAL_THREAD_COUNT_
+#define _NORMAL_THREAD_COUNT_ 4
+#endif
+			NORMAL_THREAD_COUNT = (_NORMAL_THREAD_COUNT_),
 		};
 
 		typedef unsigned char thread_count_t;

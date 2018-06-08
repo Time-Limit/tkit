@@ -31,10 +31,10 @@ public:
 	Channel(int f);
 	virtual ~Channel()
 	{
-		Log::Trace("Channel::~Channel, fd=%d, val=0x%p", fd, this);
+		Log::Debug("Channel::~Channel, fd=", fd);
 		if(close(fd))
 		{
-			Log::Error("Channel::~Channel, close failed, %d(%s)", errno, strerror(errno));
+			Log::Error("Channel::~Channel, close failed, ", errno, "(", strerror(errno), ")");
 		}
 	}
 	void Handle(const epoll_event *event);
@@ -113,12 +113,20 @@ private:
 
 class Acceptor final : public Channel
 {
+	static void default_accept_handle(int fd) { close(fd); }
 public:
-	Acceptor(int f, SessionManager &manager)
-	: Channel(f), session_manager(manager)
-	{};
+	typedef std::function<void (int)> AcceptHandle;
 
-	static bool Listen(const char * ip, int port, SessionManager &manager);
+	Acceptor(int f, AcceptHandle rh)
+	: Channel(f), accept_handle(rh)
+	{
+		if(!accept_handle)
+		{
+			accept_handle = default_accept_handle;
+		}
+	}
+
+	static bool Listen(const char * ip, int port, AcceptHandle ah = default_accept_handle);
 
 private:
 	void Send(const void *, size_t) {}
@@ -126,24 +134,32 @@ private:
 	void Recv() {};
 	void OnRecv();
 
-	SessionManager &session_manager;
+	AcceptHandle accept_handle;
 };
 
 class Connector final
 {
+	static void default_connect_handle(int fd) { close(fd); }
 public:
-	Connector(const char *_ip, int _port, SessionManager &_manager)
+	typedef std::function<void (int)> ConnectHandle;
+
+	Connector(const char *_ip, int _port, ConnectHandle ch = default_connect_handle)
 	: ip(_ip)
 	, port(_port)
-	, session_manager(_manager)
-	{};
+	, connect_handle(ch)
+	{
+		if(!connect_handle)
+		{
+			connect_handle = default_connect_handle;
+		}
+	}
 
 	bool Connect();
 
 private:
 	const std::string ip;
 	int port;
-	SessionManager &session_manager;
+	ConnectHandle connect_handle;
 };
 
 }

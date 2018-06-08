@@ -45,7 +45,7 @@ bool HttpsSessionManager::InitSSLData(const Config &config)
 		unsigned long error = 0;
 		error = ERR_get_error();
 		ERR_error_string(error,info);
-		Log::Trace("HttpsSessionManager::InitSSLData, error=%ld, info=%s", error, info);
+		Log::Error("HttpsSessionManager::InitSSLData, error=", error, " info=", info);
 		delete ssl_ctx;
 		ssl_ctx = nullptr;
 		return false;
@@ -70,7 +70,7 @@ void HttpsSessionManager::SetupThreadData()
 	CRYPTO_set_id_callback(GetThreadID);
 	CRYPTO_set_locking_callback(OperateMutexVector);
 
-	Log::Trace("HttpsSessionManager::SetupThreadData, number of lock is %ld\n", n);
+	Log::Trace("HttpsSessionManager::SetupThreadData, number of lock is ", n);
 }
 
 void HttpsSessionManager::OperateMutexVector(int mode, int n, const char *file, int line)

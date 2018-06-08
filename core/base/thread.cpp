@@ -26,7 +26,7 @@ void ThreadTask::Exec()
 		if(pool->IsQuit())
 		{
 			pool->InnerUnlock(type);
-			Log::Trace("thread ", ptid, " will quit, work_count=", work_count, ".");
+			Log::Trace("thread ", ptid, " will quit, work_count=", work_count);
 			pthread_exit(NULL);
 			return ;
 		}
@@ -53,7 +53,7 @@ Thread::Thread(Task *task, flag_t f)
 	int res = pthread_create(&tid, NULL, Run, (void *)task);
 	if(res)
 	{
-		Log::Trace("Thread::Thread, error=", strerror(errno));
+		Log::Error("Thread::Thread, error=", strerror(errno));
 	}
 }
 

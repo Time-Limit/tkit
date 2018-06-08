@@ -40,7 +40,7 @@ File::File(const std::string &_name, int _flag, mode_t _mode, bool readall)
 	if(fd == -1)
 	{
 		error_number = errno;
-		Log::Error("File::File, open failed, name=%s, flag=0x%x, mode=0x%x error=%s, readall=%d", name.c_str(), flag, mode, strerror(error_number), (int)readall);
+		Log::Error("File::File, open failed, name=", name, ", info=", strerror(error_number));
 
 		return ;
 	}
@@ -67,7 +67,7 @@ void File::Read()
 	if(!buf)
 	{
 		error_number = errno;
-		Log::Error("File::Read, alloc failed, name=%s, flag=%0x, error=%s", name.c_str(), flag, strerror(error_number));
+		Log::Error("File::Read, open failed, name=", name, ", info=", strerror(error_number));
 		return ;
 	}
 	size_t sum = 0;
@@ -77,7 +77,7 @@ void File::Read()
 		if(part == -1)
 		{
 			error_number = errno;
-			Log::Error("File::Read, read failed, name=%s, flag=%0x, error=%s", name.c_str(), flag, strerror(error_number));
+			Log::Error("File::Read, open failed, name=", name, ", info=", strerror(error_number));
 			return ;
 		}
 		len -= part;

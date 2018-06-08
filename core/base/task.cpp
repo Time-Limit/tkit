@@ -183,9 +183,9 @@ void HandleNetProtocolTask::Exec()
 
 void ConnectTask::Exec()
 {
-	Connector connect(ip.c_str(), port, *manager);
-	if(connect.Connect())
-	{
-		return ;
-	}
+	///Connector connect(ip.c_str(), port, *manager);
+	///if(connect.Connect())
+	///{
+	///	return ;
+	///}
 }

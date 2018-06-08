@@ -24,7 +24,7 @@ void Channel::Handle(const epoll_event *event)
 	{
 		OnSend();
 	}
-	Log::Trace("Channel::Handle, fd=%d, events=0x%x", fd, event->events);
+	Log::Trace("Channel::Handle, fd=", fd, ", events=0x", std::hex, event->events, std::dec);
 }
 
 void Channel::Close()
@@ -38,19 +38,22 @@ void Exchanger::Send(const void * buf, size_t size)
 {
 	if(IsClose()) return ;
 
-	Log::Error("Exchanger::Send, size=%ld\n", size);
+	Log::Debug("Exchanger::Send, size=", size);
 
 	static const size_t OBUFF_SIZE_LIMIT = 256*1024*1024; 
-	MutexGuard guarder(olock);
-	if(obuff.size() + size > OBUFF_SIZE_LIMIT)
 	{
-		Log::Error("Exchanger::Send, size limit exceed, ip=%s, size=%lu", ip, obuff.size() + size);
-		Close();
-		return ;
+		MutexGuard guarder(olock);
+		if(obuff.size() + size > OBUFF_SIZE_LIMIT)
+		{
+			Log::Error("Exchanger::Send, size limit exceed, ip=", ip, ", size=", obuff.size() + size);
+			Close();
+			return ;
+		}
+		obuff.insert(obuff.end(), buf, size);
+		RegisterSendEvent();
 	}
-	obuff.insert(obuff.end(), buf, size);
-	RegisterSendEvent();
-	Log::Error("Exchanger::Send, all=%ld\n", obuff.size());
+
+	Log::Debug("Exchanger::Send, all=", obuff.size());
 }
 
 void Exchanger::OnSend()
@@ -67,7 +70,7 @@ void Exchanger::OnSend()
 			RegisterSendEvent();
 			return ;
 		}
-		Log::Error("Exchanger::Send, errno=%d, info=%s", errno, strerror(errno));
+		Log::Error("Exchanger::Send, errno=", errno, ", info=", strerror(errno));
 		obuff.clear();
 		cur_cursor = 0;
 		Close();
@@ -75,7 +78,7 @@ void Exchanger::OnSend()
 	}
 	if((size_t)per_cnt == obuff.size() - cur_cursor)
 	{
-		Log::Error("Exchanger::Send, all send, cur_cursor=%ld, per_cnt=%d, size=%ld\n", cur_cursor, per_cnt, obuff.size());
+		Log::Debug("Exchanger::Send, all send, cur_cursor=", cur_cursor, ", per_cnt=", per_cnt, ", size=", obuff.size());
 		cur_cursor = 0;
 		obuff.clear();
 		return ;
@@ -108,7 +111,7 @@ void Exchanger::Recv()
 	
 	Close();
 
-	Log::Error("Exchanger::Recv, cnt=%d, errno=%d, info=%s", cnt, errno, strerror(errno));
+	Log::Error("Exchanger::Recv, cnt=", cnt, ", errno=", errno, ", info=", strerror(errno));
 }
 
 void Exchanger::OnRecv()
@@ -126,12 +129,12 @@ void Exchanger::InitPeerName()
 	if(getpeername(fd, (sockaddr *)&peer, (socklen_t *)&len) == 0)
 	{
 		inet_ntop(AF_INET, &peer.sin_addr, ip, sizeof(ip));
-		Log::Trace("Exchanger::InitPeerName, ip=%s", ip);
+		Log::Trace("Exchanger::InitPeerName, ip=", ip);
 	}
 	else
 	{
 		Close();
-		Log::Error("Exchanger::InitPeerName, getpeername failed, errno=%s", strerror(errno));
+		Log::Error("Exchanger::InitPeerName, getpeername failed, errno=", strerror(errno));
 	}
 }
 
@@ -171,12 +174,13 @@ void Acceptor::OnRecv()
 	
 	while((connect_fd = accept(fd, (struct sockaddr *)&accept_addr, (socklen_t *)&server_addr_len)) > 0 || errno == EINTR)
 	{
-		Log::Trace("Acceptor::OnRecv, connect_fd=%d", connect_fd);
-		session_manager.OnConnect(connect_fd);
+		Log::Debug("Acceptor::OnRecv, connect_fd=", connect_fd);
+
+		accept_handle(connect_fd);
 	}
 }
 
-bool Acceptor::Listen(const char * ip, int port, SessionManager &manager)
+bool Acceptor::Listen(const char * ip, int port, AcceptHandle ah)
 {
 	if(!ip)
 	{
@@ -192,7 +196,7 @@ bool Acceptor::Listen(const char * ip, int port, SessionManager &manager)
 
 	if(sockfd < 0)
 	{
-		Log::Error("Acceptor::Init, socket, error=%s", strerror(errno));
+		Log::Error("Acceptor::Init, socket, error=", strerror(errno));
 		return false;
 	}
 
@@ -201,7 +205,7 @@ bool Acceptor::Listen(const char * ip, int port, SessionManager &manager)
 	struct in_addr address;
 	if(inet_pton(AF_INET, ip, &address) == -1)
 	{
-		Log::Error("Acceptor::inet_pton, ip=%s, error=%s", ip, strerror(errno));
+		Log::Error("Acceptor::inet_pton, ip=", ip, ", error=", strerror(errno));
 		return false;
 	}
 	server.sin_addr.s_addr = address.s_addr;
@@ -210,16 +214,16 @@ bool Acceptor::Listen(const char * ip, int port, SessionManager &manager)
 
 	if(bind(sockfd, (struct sockaddr *)&server, socklen) < 0)
 	{
-		Log::Error("Acceptor::Listen, bind, error=%s", strerror(errno));
+		Log::Error("Acceptor::Listen, bind, error=", strerror(errno));
 		return false ;
 	}
 
 	listen(sockfd, LISTEN_QUEUE_SIZE);
-	Log::Trace("Acceptor::Init, fd=%d", sockfd);	
+	Log::Debug("Acceptor::Init, fd=", sockfd);	
 
 	epoll_event ev;
-	ev.events = EPOLLIN|EPOLLET|EPOLLET;
-	Acceptor *acceptor = new Acceptor(sockfd, manager);
+	ev.events = EPOLLIN|EPOLLET;
+	Acceptor *acceptor = new Acceptor(sockfd, ah);
 	ev.data.ptr = acceptor;
 	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, acceptor->ID(), &ev);
 
@@ -236,11 +240,11 @@ bool Connector::Connect()
 	inet_pton(AF_INET,ip.c_str(), &sockaddr.sin_addr);
 	if( (connect(socketfd,(struct sockaddr*)&sockaddr,sizeof(sockaddr))) < 0 )
 	{
-		printf("Connector::Connect, ip=%s, port=%d, connect error %s errno: %d\n", ip.c_str(), port, strerror(errno),errno);
+		Log::Error("Connector::connect, ip=", ip, " prot=", port, " connect error ", strerror(errno));
 		return false;
 	}
 
-	session_manager.OnConnect(socketfd);
+	connect_handle(socketfd);
 
 	return true;
 }
@@ -267,7 +271,7 @@ void SecureExchanger::OnSend()
 			RegisterRecvEvent();
 			return ;
 		}
-		Log::Error("SecureExchanger::OnSend, errno=%d, info=%s", errno, strerror(errno));
+		Log::Error("SecureExchanger::OnSend, info=", strerror(errno));
 		obuff.clear();
 		cur_cursor = 0;
 		Close();
@@ -301,7 +305,8 @@ bool SecureExchanger::Handshake()
 		r = SSL_set_fd(ssl, fd);
 		if(r != 1)
 		{
-			Log::Trace("SecureExchanger::Handshake, error=%d, info=%s", errno, strerror(errno));
+			int error = SSL_get_error(ssl, r);
+			Log::Error("SecureExchanger::Handshake, info=", error);
 			return false;
 		}
 
@@ -326,15 +331,11 @@ bool SecureExchanger::Handshake()
 			return true;
 		}
 
-		Log::Trace("SecureExchanger::Handshake, error=%d, info=%s", errno, strerror(errno));
+		Log::Error("SecureExchanger::Handshake, info=", error);
 		return false;
 	}
 
 	is_handshake_finish = true;
-
-	int error = SSL_get_error(ssl, r);
-
-	Log::Trace("SecureExchanger::Handshake, finish, error=%d", error);
 
 	return true;
 }
@@ -366,6 +367,6 @@ void SecureExchanger::Recv()
 
 	Close();
 
-	Log::Error("SecureExchanger::Recv, cnt=%d, error=%d, errno=%d, info=%s", cnt, error, errno, strerror(errno));
+	Log::Error("SecureExchanger::Recv, cnt=", cnt, ", error=", error);
 }
 

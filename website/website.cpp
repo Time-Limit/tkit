@@ -52,19 +52,16 @@ int main(int argc, char **argv)
 			}
 		};
 
-	HttpsSessionManager *https_session_manager = new HttpsSessionManager(https_protocol_handler);
-	assert(https_session_manager->InitSSLData(website_config));
-	assert(Acceptor::Listen("0.0.0.0", default_https_port, *https_session_manager));
+	std::shared_ptr<HttpsSessionManager> https_session_manager(new HttpsSessionManager(https_protocol_handler));
+	//assert(https_session_manager->InitSSLData(website_config));
+	//assert(Acceptor::Listen("0.0.0.0", default_https_port, *https_session_manager));
 
-	HttpSessionManager *http_session_manager = new HttpSessionManager(http_protocol_handler);
-	assert(Acceptor::Listen("0.0.0.0", default_http_port, *http_session_manager));
+	std::shared_ptr<HttpSessionManager> http_session_manager(new HttpSessionManager(http_protocol_handler));
+	assert(Acceptor::Listen("0.0.0.0", default_http_port, [http_session_manager](int fd) ->void { http_session_manager->OnConnect(fd); }));
 
 	ThreadPool::GetInstance().AddTask(new WebsiteTask());
 
 	ThreadPool::GetInstance().Start();
-
-	delete https_session_manager;
-	delete http_session_manager;
 
 	return 0;
 }

@@ -7,6 +7,7 @@
 #include <array>
 #include <tuple>
 #include <sstream>
+#include <iostream>
 
 namespace TCORE
 {
@@ -35,19 +36,19 @@ class Log
 	{
 		static void Print(std::stringstream &ss, const TUPLE &t)
 		{
-			ss << std::get<I-1>(t);
-			if(I > 1)
-			{
-				Output<I-1>::Print(ss, t);
-			}
+			Output<I-1, decltype(t)>::Print(ss, t);
+			ss<< std::get<I-1>(t);
 		}
+	};
 
-		static void Print(const TUPLE &t, LOG_LEVEL level)
+	template<typename TUPLE>
+	struct Output<1, TUPLE>
+	{
+		static void Print(std::stringstream &ss, const TUPLE &t)
 		{
-			std::stringstream ss;
-			Output<I>::Print(ss, t);
+			ss << std::get<0>(t);
 		}
-	}
+	};
 
 public:
 	static Log& GetInstance() { static Log instance;  return instance; }
@@ -55,23 +56,30 @@ public:
 	template<typename ...Args>
 	static void Debug(const Args &...args)
 	{
-		Output<sizeof...(Args)>::Print(std::make_tuple(args...), LL_DEBUG);
+		auto t = std::make_tuple(args...);
+		std::stringstream ss;
+		Output<sizeof...(Args), decltype(t)>::Print(ss, t);
+		std::cout << ss.str() << std::endl;
 	}
 
 	template<typename ...Args>
 	static void Trace(const Args &...args)
 	{
-		Output<sizeof...(Args)>::Print(std::make_tuple(args...), LL_TRACE);
+		auto t = std::make_tuple(args...);
+		std::stringstream ss;
+		Output<sizeof...(Args), decltype(t)>::Print(ss, t);
+		std::cout << ss.str() << std::endl;
 	}
 
 	template<typename ...Args>
 	static void Error(const Args &...args)
 	{
-		Output<sizeof...(Args)>::Print(std::make_tuple(args...), LL_ERROR);
+		auto t = std::make_tuple(args...);
+		std::stringstream ss;
+		Output<sizeof...(Args), decltype(t)>::Print(ss, t);
+		std::cout << ss.str() << std::endl;
 	}
 };
-
-using LOG_
 
 //static Log _log_instance_;
 

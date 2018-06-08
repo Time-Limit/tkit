@@ -157,7 +157,7 @@ public:
 	void Stop()
 	{
 		start = false;
-		LOG_TRACE("ThreadPool::Stop, i will quit.");
+		Log::Trace("ThreadPool::Stop, i will quit.");
 	}
 private:
 	bool quit;

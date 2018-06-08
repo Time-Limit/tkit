@@ -18,7 +18,7 @@ void ThreadTask::Exec()
 	}
 	size_t work_count = 0;
 	pthread_t ptid = pthread_self();
-	LOG_TRACE("thread 0x%lx will work.", ptid);
+	Log::Trace("thread ", ptid, " will work.");
 	for(;;)
 	{
 		pool->InnerLock(type);
@@ -26,7 +26,7 @@ void ThreadTask::Exec()
 		if(pool->IsQuit())
 		{
 			pool->InnerUnlock(type);
-			LOG_TRACE("thread 0x%lx will quit, work_count=%zu.", ptid, work_count);
+			Log::Trace("thread ", ptid, " will quit, work_count=", work_count, ".");
 			pthread_exit(NULL);
 			return ;
 		}
@@ -53,7 +53,7 @@ Thread::Thread(Task *task, flag_t f)
 	int res = pthread_create(&tid, NULL, Run, (void *)task);
 	if(res)
 	{
-		LOG_TRACE("Thread::Thread, error=%s", strerror(errno));
+		Log::Trace("Thread::Thread, error=", strerror(errno));
 	}
 }
 

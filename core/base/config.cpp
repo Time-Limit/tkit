@@ -105,12 +105,12 @@ size_t ConfigManager::Reset(const std::initializer_list<std::string> &il)
 			{
 				delete c;
 				c = nullptr;
-				LOG_ERROR("ConfigManager:Reset, insert failed, file=%s", p.c_str());
+				Log::Trace("ConfigManager:Reset, insert failed, file=%s", p.c_str());
 			}
 		}
 		catch(const ConfigException &e)
 		{
-			LOG_ERROR("ConfigManager::Reset, file=%s, what=%d", p.c_str(), e.what());
+			Log::Error("ConfigManager::Reset, file=%s, what=%d", p.c_str(), e.what());
 			if(c)
 			{
 				delete c;

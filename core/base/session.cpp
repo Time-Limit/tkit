@@ -89,7 +89,7 @@ void SessionManager::AddSession(Session *session)
 	epoll_event ev;
 	ev.events = EPOLLIN|EPOLLET;
 	ev.data.ptr = session->GetExchanger();
-	LOG_TRACE("SessionManager::Add, fd=%d, ip=%s", session->ID(), session->GetExchanger()->IP());
+	Log::Trace("SessionManager::Add, fd=%d, ip=%s", session->ID(), session->GetExchanger()->IP());
 	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, session->ID(), &ev);
 }
 

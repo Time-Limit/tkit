@@ -153,7 +153,7 @@ OctetsStream& HttpResponse::Deserialize(OctetsStream &os)
 			break;
 			default:
 			{
-				LOG_ERROR("HttpRequest::Deserialize, wrong parse state");
+				Log::Error("HttpRequest::Deserialize, wrong parse state");
 				assert(false);
 			}
 			break;
@@ -360,7 +360,7 @@ OctetsStream& HttpRequest::Deserialize(OctetsStream &os)
 			break;
 			default:
 			{
-				LOG_ERROR("HttpRequest::Deserialize, wrong parse state");
+				Log::Error("HttpRequest::Deserialize, wrong parse state");
 				assert(false);
 			}
 			break;

@@ -31,10 +31,10 @@ public:
 	Channel(int f);
 	virtual ~Channel()
 	{
-		LOG_TRACE("Channel::~Channel, fd=%d, val=0x%p", fd, this);
+		Log::Trace("Channel::~Channel, fd=%d, val=0x%p", fd, this);
 		if(close(fd))
 		{
-			LOG_ERROR("Channel::~Channel, close failed, %d(%s)", errno, strerror(errno));
+			Log::Error("Channel::~Channel, close failed, %d(%s)", errno, strerror(errno));
 		}
 	}
 	void Handle(const epoll_event *event);

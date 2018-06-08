@@ -5,13 +5,14 @@
 #include <stdarg.h>
 #include <string>
 #include <array>
+#include <tuple>
+#include <sstream>
 
 namespace TCORE
 {
 
 class Log
 {
-public:
 	enum LOG_LEVEL
 	{
 		LL_DEBUG = 0,
@@ -21,7 +22,6 @@ public:
 		LL_COUNT,
 	};
 
-private:
 	int level; 
 	std::array<int, LL_COUNT> log_file;
 
@@ -30,26 +30,53 @@ private:
 	, log_file({2, 2, 2})
 	{}
 
-	void Output(LOG_LEVEL level, const std::string &info);
+	template<size_t I, typename TUPLE>
+	struct Output
+	{
+		static void Print(std::stringstream &ss, const TUPLE &t)
+		{
+			ss << std::get<I-1>(t);
+			if(I > 1)
+			{
+				Output<I-1>::Print(ss, t);
+			}
+		}
+
+		static void Print(const TUPLE &t, LOG_LEVEL level)
+		{
+			std::stringstream ss;
+			Output<I>::Print(ss, t);
+		}
+	}
 
 public:
 	static Log& GetInstance() { static Log instance;  return instance; }
 
-	static void LOG_DEBUG(const char *fmt, ...)
+	template<typename ...Args>
+	static void Debug(const Args &...args)
 	{
+		Output<sizeof...(Args)>::Print(std::make_tuple(args...), LL_DEBUG);
 	}
 
-	static void LOG_TRACE(const char *fmt, ...)
+	template<typename ...Args>
+	static void Trace(const Args &...args)
 	{
+		Output<sizeof...(Args)>::Print(std::make_tuple(args...), LL_TRACE);
 	}
 
-	static void LOG_ERROR(const char *fmt, ...)
+	template<typename ...Args>
+	static void Error(const Args &...args)
 	{
+		Output<sizeof...(Args)>::Print(std::make_tuple(args...), LL_ERROR);
 	}
 };
 
+using LOG_
+
 //static Log _log_instance_;
 
+namespace
+{
 struct LogIniter
 {
 	LogIniter()
@@ -58,9 +85,7 @@ struct LogIniter
 	}
 };
 
-namespace
-{
-	static LogIniter _log_inter;
+static LogIniter _log_inter;
 }
 
 }

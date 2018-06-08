@@ -1,6 +1,6 @@
 ConfigTable = {
-	["http-port"] = 9801,
-	["https-port"] = 4431,
+	["http-port"] = 80,
+	["https-port"] = 443,
 		["base-folder"] = "./blog/public/",
 	--	["base-folder"] = "./../core/certbot/cert/",
 	["default-file-name"] = "./index.html",

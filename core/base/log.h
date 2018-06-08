@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string>
-#include <array>
 #include <tuple>
 #include <sstream>
 #include <iostream>
@@ -24,11 +23,9 @@ class Log
 	};
 
 	int level; 
-	std::array<int, LL_COUNT> log_file;
 
 	Log()
 	: level(LL_TRACE)
-	, log_file({2, 2, 2})
 	{}
 
 	template<size_t I, typename TUPLE>

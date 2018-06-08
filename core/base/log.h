@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string>
-#include <array>
 #include <tuple>
 #include <sstream>
 #include <iostream>

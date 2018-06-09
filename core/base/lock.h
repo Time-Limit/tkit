@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <assert.h>
+#include <fstream>
 
 namespace TCORE
 {

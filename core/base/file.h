@@ -5,36 +5,54 @@
 #include <fcntl.h>
 #include <set>
 #include <string>
+#include "lock.h"
+#include <memory>
 
+namespace TCORE
+{
 class File
 {
-	friend class FileManager;
-private:
+	enum
+	{
+		MAX_SIZE = 1024*1024*10,
+	};
+
 	std::string name;
-	int flag;
-	mode_t mode;
-	std::string content;
-	int fd;
-	int error_number;
+	std::string data;
+	bool is_load;
 public:
-	File(const std::string &_name, int _flag = O_RDONLY, mode_t _mode = 0, bool readall = true);
-	~File();
+	const std::string Name() const { return name; }
+	const std::string Data() const { return data; }
 
-	void Read();
+	explicit File(const std::string &name, bool load_flag = true);
 
-	const std::string& GetContent() const { return content; }
+	bool IsLoad() const { return is_load; }
 };
 
 class FileManager
 {
+public:
+	typedef std::shared_ptr<File> FilePtr;
+
 private:
-	//typedef std::set<File, [](const File &lhs, const File &rhs) ->bool { return lhs.name < rhs.name; }> FileSet;
-	//FileSet file_set;
+	struct FilePtrCompare
+	{
+		bool operator()(const FilePtr &lhs, const FilePtr &rhs) const
+		{
+			return lhs->Name() < rhs->Name();
+		}
+	};
+
+	typedef std::set<FilePtr, FilePtrCompare> FileSet;
+	Mutex file_set_lock;
+	FileSet file_set;
 
 public:
-	FileManager& GetInstance() { static FileManager m; return m; }
+	static FileManager& GetInstance() { static FileManager m; return m; }
 
-	std::string GetFileData(const std::string &);
+	FilePtr GetFilePtr(const std::string &);
 };
+
+}
 
 #endif

@@ -26,12 +26,17 @@ void SourceReq::LogicCheckRequest()
 void SourceReq::ConstructResponse()
 {
 	except_status_code(response, HTTP_SC_OK);
-	response.body = File(default_base_folder + request.url).GetContent();
-	if(response.body.size() == 0)
+	TCORE::FileManager::FilePtr fptr = TCORE::FileManager::GetInstance().GetFilePtr(default_base_folder + request.url);
+	if(fptr)
 	{
-		response.body = File(default_base_folder + request.url + default_file_name).GetContent();
-		if(response.body.size() > 0)
+		response.body = fptr->Data();
+	}
+	else
+	{
+		fptr = TCORE::FileManager::GetInstance().GetFilePtr(default_base_folder + request.url + default_file_name);
+		if(fptr)
 		{
+			response.body = fptr->Data();
 			request.url += default_file_name;
 		}
 		else

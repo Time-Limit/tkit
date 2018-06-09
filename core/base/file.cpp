@@ -45,8 +45,10 @@ FileManager::FilePtr FileManager::GetFilePtr(const std::string &name)
 
 	//FileSet::iterator it = std::find_if(file_set.begin(), file_set.end(), [&name](const FilePtr& rhs)->bool { return rhs->Name() == name; });
 	FileSet::iterator it = file_set.find(FilePtr(new File(name, true)));
-
-	return *it;
+	if(it != file_set.end())
+	{
+		return *it;
+	}
 	
 	FilePtr fptr(new File(name));
 	

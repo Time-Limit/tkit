@@ -107,23 +107,23 @@ SessionManager::~SessionManager()
 void HttpSession::OnDataIn()
 {
 	OctetsStream os(recv_data);
-	HttpRequest *req = new HttpRequest();
-
+	HttpRequest *req = nullptr;
 	try
 	{
-		os >> *req >> OctetsStream::COMMIT;
-		recv_data = os.GetData();
-		ThreadPool::GetInstance().AddTask(new HandleNetProtocolTask(GetManager(), ID(), req));
+		for(;;)
+		{
+			req = new HttpRequest();
+			os >> *req >> OctetsStream::COMMIT;
+			ThreadPool::GetInstance().AddTask(new HandleNetProtocolTask(GetManager(), ID(), req));
+			req = nullptr;
+		}
 	}
-	catch(OctetsStream::OSException e)
+	catch(...)
 	{
 		os >> OctetsStream::REVERT;
 		delete req;
 	}
-	catch(...)
-	{
-		delete req;
-	}
+	recv_data = os.GetData();
 }
 
 void HttpSessionManager::OnConnect(int fd)

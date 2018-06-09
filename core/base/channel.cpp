@@ -351,9 +351,10 @@ void SecureExchanger::Recv()
 	}
 
 	int cnt = 0, per_cnt = 0, error = 0;
-	do
+	for(;;)
 	{
-		while((per_cnt = SSL_read(ssl, tmp_buff, TMP_BUFF_SIZE)) > 0)
+		per_cnt = SSL_read(ssl, tmp_buff, TMP_BUFF_SIZE);
+		if(per_cnt > 0)
 		{
 			ibuff.insert(ibuff.end(), tmp_buff, per_cnt);
 			cnt += per_cnt;
@@ -362,11 +363,20 @@ void SecureExchanger::Recv()
 				return ;
 			}
 		}
-		error = SSL_get_error(ssl, per_cnt);
-	}while(per_cnt < 0 && error == SSL_ERROR_WANT_READ);
-
-	Close();
-
-	Log::Error("SecureExchanger::Recv, cnt=", cnt, ", error=", error);
+		else if(per_cnt < 0)
+		{
+			error = SSL_get_erorr(ssl, per_cnt);
+			if(error == SSL_ERROR_WANT_READ)
+			{
+				RegisterRecvEvent()
+			}
+		}
+		else
+		{
+			Log::Error("SecureExchanger::Recv, cnt=", cnt, ", error=", error);
+			Close();
+			return ;
+		}
+	}
 }
 

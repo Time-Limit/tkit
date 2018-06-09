@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 			HttpRequest *req = dynamic_cast<HttpRequest *>(&p);
 			if(req)
 			{
-				Log::Trace("main::function, url=", req->url);
+				Log::Trace("main::function, url=", req->url, " sid=", sid);
 				SourceReq *s = new SourceReq(manager, sid, *req);
 				s->Exec();
 				delete s;

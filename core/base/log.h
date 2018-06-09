@@ -69,7 +69,7 @@ private:
 
 	bool CheckLevel(LOG_LEVEL l) const
 	{
-		return l <= level;
+		return l >= level;
 	}
 
 public:

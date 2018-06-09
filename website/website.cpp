@@ -16,6 +16,7 @@ using TCORE::HttpsSessionManager;
 using TCORE::HttpSessionManager;
 using TCORE::Acceptor;
 using TCORE::ThreadPool;
+using TCORE::Log;
 
 int main(int argc, char **argv)
 {
@@ -34,6 +35,7 @@ int main(int argc, char **argv)
 			HttpRequest *req = dynamic_cast<HttpRequest *>(&p);
 			if(req)
 			{
+				Log::Trace("main::function, url=", req->url);
 				SourceReq *s = new SourceReq(manager, sid, *req);
 				s->Exec();
 				delete s;

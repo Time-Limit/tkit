@@ -30,33 +30,56 @@ class Neter
 {
 	class Session;
 	typedef std::shared_ptr<Session> SessionPtr;
+
 	class Session
 	{
 		struct CallbackBase
 		{
-			virtual void Deseriable(SessionPtr, Octets &) = 0;
+			virtual void Deserialize(SessionPtr, Octets &) = 0;
 			virtual ~CallbackBase() {};
 		};
 
 		template<typename PROTOCOL>
 		struct Callback : public CallbackBase
 		{
-			virtual void Deseriable(SessionPtr ptr, Octets &data) {}
+			virtual void Deserialize(SessionPtr ptr, Octets &data) {}
 
 			typedef std::function<void (const PROTOCOL &, SessionPtr)> CallbackFunc;
-			bool InitCallback(CallbackFunc func)
-			{
-				//if(callback)
-				//{
-				//	Log::Error("Neter::Session::InitCallback, forbid reset");
-				//	return false;
-				//}
-				callback = func;
-				return true;
-			}
+
+			explicit Callback(CallbackFunc cb) : callback(cb) {}
+			Callback(const Callback &c) : callback(c.callback) {}
+
 		private:
 			CallbackFunc callback;
 		};
+
+		typedef std::shared_ptr<CallbackBase> CallbackPtr;
+		CallbackPtr callback_ptr;
+
+	public:
+		template<typename CALLBACKPTR>
+		void InitCallback(CALLBACKPTR cb)
+		{
+			if(callback_ptr.get())
+			{
+				Log::Error("Neter::Session::InitCallback, forbid reset callback!");
+				return ;
+			}
+
+			callback_ptr = cb;
+		}
+
+		template<typename PROTOCOL>
+		void InitCallback(std::function<void (const PROTOCOL &, SessionPtr)> callback)
+		{
+			if(callback_ptr.get())
+			{
+				Log::Error("Neter::Session::InitCallback, forbid reset callback!");
+				return ;
+			}
+			callback_ptr.reset(new Callback<PROTOCOL>(callback));
+		}
+
 	public:
 		enum EVENT_FLAG
 		{
@@ -71,44 +94,75 @@ class Neter
 
 		typedef unsigned char event_flag_t;
 
+		static void NotifyReadAccess(SessionPtr);
+		static void NotifyWriteAccess(SessionPtr);
+
+		void Read();
+		void Write();
+		void Send(const Octets &data);
+
 	private:
+		mutable SpinLock event_flag_lock;
 		event_flag_t event_flag;
 
+		Octets read_data;
+
+		typedef std::list<Octets> SendDataList;
+		SendDataList send_data_list;
+		mutable SpinLock send_data_list_lock;
+
 	public:
+		bool TestAndSetEventFlag(event_flag_t t, event_flag_t except = 0)
+		{
+			SpinLockGuard guard(event_flag_lock);
+			if((event_flag&t) == except)
+			{
+				(event_flag |= t) &= EVENT_FLAG_MASK;
+				return true;
+			}
+			return false;
+		}
+
 		bool TestEventFlag(event_flag_t e) const
 		{
+			SpinLockGuard guard(event_flag_lock);
 			return (event_flag&e == e) && e;
 		}
 		void SetEventFlag(event_flag_t e)
 		{
+			SpinLockGuard guard(event_flag_lock);
 			(event_flag |= e) &= EVENT_FLAG_MASK;
 		}
 		void ClrEventFlag(event_flag_t e)
 		{
+			SpinLockGuard guard(event_flag_lock);
 			event_flag &= ((~e)&EVENT_FLAG_MASK);
 		}
 
 	private:
-		typedef std::function<void ()> ReadFDFunc;
-		ReadFDFunc read_fd_func;
+		typedef void (Session::*InnerReadFuncPtr)();
+		InnerReadFuncPtr read_func_ptr;
 
-		static void DefaultReadFDFunc()
+		void DefaultReadFunc()
 		{
-			//do nothing
+			Log::Error("Session::DefaultReadFunc, you should never call me.");
 		}
 
-		static void AcceptorReadFDFunc()
+		void AcceptorReadFunc();
+		void ExchangerReadFunc();
+		void SecureExchangerReadFunc();
+
+		typedef void (Session::*InnerWriteFuncPtr)();
+		InnerWriteFuncPtr write_func_ptr;
+
+		void DefaultWriteFunc()
 		{
+			Log::Error("Session::DefaultWriteFunc, you should never call me.");
 		}
 
-		static void ExchangeReadFDFunc()
-		{
-		}
-
-		static void SecureExchangeReadFDFunc()
-		{
-		}
 	public:
+		void Close();
+
 		enum SESSION_TYPE
 		{
 			INVALID_SESSION = -1,
@@ -118,20 +172,70 @@ class Neter
 		};
 
 		Session(SESSION_TYPE type, int fd);
+		~Session()
+		{
+			int res = close(fd);
+			if(res == -1)
+			{
+				Log::Error("Session::~Session, close fd failed, info=", strerror(errno));
+			}
+			else
+			{
+				Log::Debug("Sesssion::~Session, close success!");
+			}
+		}
 		bool IsInitSuccess() const { return type != INVALID_SESSION; }
 
 	private:
 		int fd;
 		SESSION_TYPE type;
+
 	public:
 		SESSION_TYPE GetType() const { return type; }
 		int GetFD() const { return fd; }
-
-		template<typename PROTOCOL>
-		void InitCallback(std::function<void (const PROTOCOL &, SessionPtr)> callback) {}
 	};
+
+	struct SessionWriteTask : public Task
+	{
+		SessionWriteTask(SessionPtr p) : Task(RDWR_TASK),  ps(p) {} 
+
+		void Exec()
+		{
+			ps->ClrEventFlag(Session::WRITE_READY);
+			ps->Write();
+		}
+
+	private:
+		SessionPtr ps;
+	};
+
+	struct SessionReadTask : public Task
+	{
+		SessionReadTask(SessionPtr p) : Task(RDWR_TASK), ps(p) {}
+
+		void Exec()
+		{
+			ps->ClrEventFlag(Session::READ_READY);
+			ps->Read();
+		}
+
+	private:
+		SessionPtr ps;
+	};
+
+	struct NeterPollTask : public Task
+	{
+		NeterPollTask() : Task(POLL_TASK) {}
+
+		void Exec()
+		{
+			Neter::GetInstance().Wait();
+		}
+	};
+
 	typedef std::map<ptrdiff_t, SessionPtr> SessionContainer;
 	SessionContainer session_container;
+
 private:
 	enum
 	{
@@ -140,7 +244,8 @@ private:
 
 		THREAD_COUNT = 2,
 	};
-	ThreadPool threadpool(THREAD_COUNT, ThreadPool::PT_XT_TO_XQ/*, [](task_id_t task_id, size_t thread_size)->size_t { return task_id; }*/);
+
+	static ThreadPool threadpool;//(THREAD_COUNT, ThreadPool::PT_XT_TO_XQ/*, [](task_id_t task_id, size_t thread_size)->size_t { return task_id; }*/);
 
 	enum
 	{
@@ -159,9 +264,32 @@ private:
 		}
 	}
 
-	bool Ctl(int op, int fd, struct epoll_event *event) { return true; }
+	~Neter()
+	{
+		if(epoll_instance_fd != -1)
+		{
+			int res = close(epoll_instance_fd);
+			if(res == -1)
+			{
+				Log::Error("Neter::~Neter, close epoll instance failed, info=", strerror(errno));
+			}
+		}
+	}
+
+	bool Ctrl(int op, int fd, struct epoll_event *event);
+
+	typedef std::list<ptrdiff_t> SessionKeyList;
+	SessionKeyList ready_close_session_list;
+	SpinLock ready_close_session_list_lock;
 
 public:
+
+	void AddReadyCloseSession(ptrdiff_t session_addr)
+	{
+		SpinLockGuard guard(ready_close_session_list_lock);
+		ready_close_session_list.push_back(session_addr);
+	}
+
 	void Wait(time_t timeout = 1000);
 
 	template<typename PROTOCOL>
@@ -218,9 +346,9 @@ bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL 
 	ev.events = EPOLLIN|EPOLLET;
 	SessionPtr ptr(new Session(Session::ACCEPTOR_SESSION, sockfd));
 	ptr->InitCallback<PROTOCOL>(callback);
-	Neter::GetInstance().session_container.insert(std::make_pair((ptrdiff_t)ptr.get(), ptr));
+	Neter::GetInstance().session_container.insert(std::make_pair(static_cast<ptrdiff_t>(ptr.get()), ptr));
 	ev.data.ptr = ptr.get();
-	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
+	Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
 
 	return true;
 }

@@ -1,8 +1,13 @@
 .PHONY: website clean test
 CC = g++
-core_objs = ../core/base/neter.o ../core/base/thread.o ../core/base/log.o ../core/base/octets.o \
-	    ../core/base/config.o ../core/base/task.o ../core/inl/enums.o ../core/base/file.o \
-	    ../core/base/md5.o ../core/base/session.o ../core/base/protocol.o
+
+core_objs = config.cpp file.cpp log.cpp md5.cpp neter.cpp octets.cpp threadpool.cpp
+core_objs = ../core/base/neter.o ../core/base/log.o ../core/base/octets.o \
+	    ../core/base/threadpool.o ../core/base/md5.o ../core/base/config.h \
+	    ../core/base/file.o ../core/inl/enums.o ../core/base/protocol.o
+
+# ../core/base/config.o ../core/base/task.o ../core/inl/enums.o ../core/base/file.o \
+#	    ../core/base/md5.o ../core/base/session.o ../core/base/protocol.o
 
 website_objs = website.o websitetask.o websitebase.o
 

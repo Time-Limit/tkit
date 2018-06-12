@@ -124,8 +124,6 @@ private:
 	typedef std::vector<TaskQueuePtr> TaskQueueVector;
 	TaskQueueVector taskqueues;
 
-	size_t thread_size;
-	size_t taskqueue_size;
 	DistributeFunc distribute;
 
 	static size_t DefaultDistributeFunc(task_id_t task_id, size_t thread_size)
@@ -135,20 +133,18 @@ private:
 
 public:
 	explicit ThreadPool(size_t _thread_size, POOL_TYPE type, DistributeFunc _distribute = DistributeFunc(DefaultDistributeFunc))
-	: thread_size(_thread_size)
-	, taskqueue_size(0)
-	, distribute(_distribute)
+	: distribute(_distribute)
 	{ 
 		try
 		{
 			if(type == PT_XT_TO_XQ)
 			{
-				for(size_t i = 0; i < thread_size; ++i)
+				for(size_t i = 0; i < _thread_size; ++i)
 				{
 					taskqueues.push_back(TaskQueuePtr(new TaskQueue()));
 				}
 
-				for(size_t i = 0; i < thread_size; ++i)
+				for(size_t i = 0; i < _thread_size; ++i)
 				{
 					threads.push_back(Thread(TaskPtr(new ClearTaskQueueTask(taskqueues[i]))));
 				}
@@ -157,7 +153,7 @@ public:
 			{
 				taskqueues.push_back(TaskQueuePtr(new TaskQueue()));
 
-				for(size_t i = 0; i < thread_size; ++i)
+				for(size_t i = 0; i < _thread_size; ++i)
 				{
 					threads.push_back(Thread(TaskPtr(new ClearTaskQueueTask(taskqueues[0]))));
 				}
@@ -169,16 +165,14 @@ public:
 		}
 		catch(...)
 		{
-			thread_size = 0;
-			taskqueue_size = 0;
 			threads.clear();
 			taskqueues.clear();
 			distribute = DistributeFunc(nullptr);
 			throw;
 		}
-
-		taskqueue_size = taskqueues.size();
 	}
+
+	bool AddTask(TaskPtr ptr);
 };
 
 }

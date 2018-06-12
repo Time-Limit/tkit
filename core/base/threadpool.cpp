@@ -2,6 +2,18 @@
 
 using namespace TCORE;
 
+bool ThreadPool::AddTask(TaskPtr ptr)
+{
+	size_t index = distribute(ptr->ID(), taskqueues.size());
+
+	if(index < taskqueues.size())
+	{
+		return taskqueues.Push(ptr);
+	}
+
+	return false;
+}
+
 bool TaskQueue::Push(TaskPtr task)
 {
 	if(task.get() == nullptr)

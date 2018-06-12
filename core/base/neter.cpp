@@ -1,82 +1,43 @@
 #include "neter.h"
-#include "log.h"
-#include "thread.h"
-#include "lock.h"
-#include "channel.h"
-#include "signal.h"
 
 using namespace TCORE;
 
-Neter& Neter::GetInstance()
+Neter::Session::Session(SESSION_TYPE t, int f)
+: fd(f)
+, type(t)
 {
-	static Neter _instance;
-	return _instance;
-}
-
-Neter::Neter()
-{
-	epoll_fd = epoll_create(1);
-	if(epoll_fd == -1)
+	switch(type)
 	{
-		Log::Error("Neter::Neter, error=", strerror(errno));
-		assert(false);
+		case ACCEPTOR_SESSION:
+		{
+			read_fd_func = AcceptorReadFDFunc;
+		}break;
+		case EXCHANGE_SESSION:
+		{
+			read_fd_func = ExchangeReadFDFunc;
+		}break;
+		case SECURE_EXCHANGE_SESSION:
+		{
+			read_fd_func = SecureExchangeReadFDFunc;
+		}break;
+		default:
+		{
+			fd = -1;
+			type = INVALID_SESSION;
+			read_fd_func = ReadFDFunc(nullptr);
+		}
 	}
 }
-
-Neter::~Neter()
-{
-	if(epoll_fd != -1)
-	{
-		close(epoll_fd);
-	}
-}
-
-bool Neter::Ctl(int op, int fd, struct epoll_event *event)
-{
-	if(epoll_ctl(epoll_fd, op, fd, event))
-	{
-		Log::Error("Neter::Ctl, error=", strerror(errno));
-		return false;
-	}
-
-	return true;
-}
-
 
 void Neter::Wait(time_t timeout)
 {
-	int result = epoll_wait(epoll_fd, events, EPOLL_EVENT_SIZE, timeout);
+	int res = epoll_wait(epoll_instance_fd, events, EPOLL_EVENT_SIZE, timeout);
 
-	if(result < 0)
+	struct epoll_event *begin = events, *end = events + res;
+
+	for( ; begin < end; ++begin)
 	{
-		Log::Error("Neter::Wait, errno=", errno, " info=", strerror(errno));
-		return ;
+		// do something
 	}
+};
 
-	struct epoll_event *begin = events, *end = events + result;
-
-	for(; begin < end; ++begin)
-	{
-		if(begin->data.ptr)
-		{
-			((Channel *)(begin->data.ptr))->Handle(begin);
-		}
-	}
-
-	ChannelSet::iterator it = channel_set.begin();
-	ChannelSet::iterator ie = channel_set.end();
-
-	for(; it != ie; ++it)
-	{
-		epoll_event event;
-		Ctl(EPOLL_CTL_DEL, (*it)->ID(), &event);
-		delete *it;
-	}
-
-	channel_set.clear();
-}
-
-void Neter::ReadyClose(Channel *c)
-{
-	channel_set.insert(c);
-}

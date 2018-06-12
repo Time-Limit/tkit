@@ -8,9 +8,9 @@
 #include <string>
 
 //BASE
-typedef int channel_id_t;
-typedef int session_id_t;
+typedef uint64_t session_id_t;
 typedef unsigned int flag_t;
+typedef unsigned int task_id_t;
 
 //HTTP
 typedef unsigned short status_code_t;

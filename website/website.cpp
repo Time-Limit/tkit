@@ -2,7 +2,6 @@
 #include "websitetask.h"
 #include "websitebase.h"
 #include "neter.h"
-#include "channel.h"
 #include "config.h"
 #include "file.h"
 #include "md5.h"

@@ -1,0 +1,248 @@
+#include "neter.h"
+
+using namespace TCORE;
+
+Neter::Session::~Session()
+{
+	close(fd);
+}
+
+void Neter::Session::Handle(const epoll_event &event)
+{
+	if(event.events & (EPOLLERR | EPOLLHUP))
+	{
+		SetCloseFlag();
+	}
+
+	if(event.events & EPOLLIN)
+	{
+		NetRecv();
+	}
+	if(event.events & EPOLLOUT)
+	{
+		NetSend();
+	}
+
+	Log::Debug("Session::Handle, fd=", fd, ", events=0x", std::hex, event.events, std::dec);
+}
+
+void Neter::Wait(time_t timeout)
+{
+	//epoll_wait;
+
+	int result = epoll_wait(epoll_fd, events, EPOLL_EVENT_SIZE, timeout);
+
+	if(result < 0)
+	{
+		Log::Error("Neter::Wait, errno=", errno, " info=", strerror(errno));
+		return ;
+	}
+
+	struct epoll_event *begin = events, *end = events + result;
+
+	for(; begin < end; ++begin)
+	{
+		if(begin->data.ptr)
+		{
+			static_cast<Session *>(begin->data.ptr)->Handle(*begin);
+		}
+	}
+
+	SessionPtrSet tmp_wait_handle_session;
+
+	wait_handle_session_lock.Lock();
+	swap(tmp_wait_handle_session, wait_handle_session);
+	wait_handle_session_lock.UnLock();
+
+	for(auto &s : tmp_wait_handle_session)
+	{
+		if(s->IsReadyClose())
+		{
+			epoll_event event;
+			Ctl(EPOLL_CTL_DEL, (*s).get_fd(), &event);
+			
+			s->ClrCloseFlag();
+
+			//remove this sessiom from container;
+			break;
+		}
+
+		if(s->IsReadySend())
+		{
+			s->ClrSendFlag();
+			s->NetSend();
+		}
+	}
+}
+
+bool Neter::Ctl(int op, int fd, struct epoll_event *event)
+{
+	if(epoll_ctl(epoll_fd, op, fd, event))
+	{
+		Log::Error("Neter::Ctl, error=", strerror(errno));
+		return false;
+	}
+
+	return true;
+}
+
+void Neter::AcceptSession::NetRecv()
+{
+	if(IsReadyClose())
+	{
+		return ;
+	}
+
+	int new_fd = -1;
+	struct sockaddr_in accept_addr;
+	int server_addr_len;
+
+	for(;;)
+	{
+		new_fd = accept(get_fd(), (struct sockaddr *)&accept_addr, (socklen_t *)&server_addr_len);
+
+		if(new_fd > 0)
+		{
+			SessionPtr exchange(new ExchangeSession(new_fd));
+			exchange->InitPHC(GetPHCPtr());
+			epoll_event ev;
+			ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
+			ev.data.ptr = exchange.get();
+			Neter::GetInstance().Ctl(EPOLL_CTL_ADD, exchange->get_fd(), &ev);
+			Neter::GetInstance().session_ptr_map.insert(std::make_pair(ID(), exchange));
+		}
+		else
+		{
+			Log::Error("Neter::AcceptSession::NetRecv, fd=", get_fd(), " errno=", errno, " info=", strerror(errno));
+			if(errno == EAGAIN)
+			{
+				//waiting notification from epoll
+				return ;
+			}
+			else if(errno == EINTR)
+			{
+				//try accept again
+			}
+			else
+			{
+				//close this session
+				SetCloseFlag();
+			}
+		}
+	}
+}
+
+void Neter::ExchangeSession::NetSend()
+{
+	if(IsReadyClose())
+	{
+		return ;
+	}
+
+	MutexGuard guard(send_data_lock);
+
+	int per_cnt = 0;
+	for(;;)
+	{
+		per_cnt = write(get_fd(), static_cast<char *>(send_data.begin()) + cur_cursor, send_data.size() - cur_cursor);
+		if(per_cnt >= 0)
+		{
+			if(static_cast<size_t>(per_cnt) == send_data.size() - cur_cursor)
+			{
+				// all send
+				cur_cursor = 0;
+				send_data.clear();
+				return ;
+			}
+			else
+			{
+				cur_cursor += per_cnt;
+				// write again
+			}
+		}
+		else
+		{
+			if(errno == EAGAIN)
+			{
+				//waiting notification from epoll;
+				return ;
+			}
+			else if(errno == EINTR)
+			{
+				//write again
+			}
+			else
+			{
+				SetCloseFlag();
+				return ;
+			}
+		}
+	}
+
+}
+
+void Neter::ExchangeSession::NetRecv()
+{
+	if(IsReadyClose())
+	{
+		return ;
+	}
+
+	static const size_t BUFF_SIZE = 1024;
+	unsigned char buff[BUFF_SIZE];
+	size_t cnt = 0;
+	int res = 0;
+	for(;;)
+	{
+		res = read(get_fd(), buff, BUFF_SIZE);
+		if(res > 0)
+		{
+			recv_data.insert(recv_data.end(), buff, res);
+			cnt += res;
+		}
+		else if(res == -1)
+		{
+			if(errno == EINTR)
+			{
+				//TRY AGAIN
+			}
+			else if(errno == EAGAIN)
+			{
+				// waiting notification from epoll;
+				break;
+			}
+			else
+			{
+				SetCloseFlag();
+				return ;
+			}
+		}
+		else if(res == 0)
+		{
+			break;
+		}
+	}
+
+	if(cnt == 0)
+	{
+		//TCP-FIN
+		SetCloseFlag();
+		return ;
+	}
+
+	GetPHCPtr()->Deseriable(Neter::GetInstance().GetSessionPtr(ID()), recv_data);
+}
+
+namespace
+{
+
+struct InitNeter
+{
+	InitNeter()
+	{
+		TCORE::Neter::GetInstance();
+	}
+}_init_neter_;
+
+}
+

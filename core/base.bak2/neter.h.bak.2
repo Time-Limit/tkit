@@ -1,0 +1,251 @@
+#ifndef _NETER_H_
+#define _NETER_H_
+
+#include <functional>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/epoll.h>
+#include <netinet/in.h>
+#include <assert.h>
+#include <set>
+#include <memory>
+#include "lock.h"
+#include "octets.h"
+#include "exptype.h"
+#include <map>
+#include "log.h"
+
+namespace TCORE
+{
+
+class Neter
+{
+private:
+	class Session
+	{
+		private:
+			virtual void NetRecv() = 0;
+			virtual void NetSend() = 0;
+
+		public:
+			Session(int f)
+			: fd(f)
+			, close_flag(false)
+			, id(Neter::GetInstance().GetNextSessionID())
+			{
+				fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+			}
+
+			virtual ~Session() { close(fd); }
+
+			void Handle(const epoll_event *event);
+
+			int get_fd() const { return fd; }
+
+			session_id_t SID() const { return id; }
+
+			virtual bool Send(const Octets &data) { return false; }
+
+		protected:
+			bool IsClose() { return close_flag; }
+			void Close();
+
+			void RegisterRecvEvent();
+			void RegisterSendEvent();
+
+		private:
+			int fd;
+			bool close_flag;
+			session_id_t id;
+	};
+
+	class ExchangeSession final: public Session
+	{
+		Mutex send_buff_lock;
+		Octets send_buff;
+
+		Mutex recv_buff_lock;
+		Octets recv_buff;
+
+		virtual void NetRecv();
+		virtual void NetSend();
+
+		struct TypeBase
+		{
+			virtual void Seriable(Octets &data) = 0;
+		};
+
+		template<typename PROTOCOL>
+			struct Type final : public TypeBase
+		{
+			typedef std::function<void (const PROTOCOL &p)> HandleFunc;
+
+			HandleFunc handle;
+
+			Type(HandleFunc h) : handle(h) {}
+
+			void Seriable(Octets &data)
+			{
+				Log::Error("ExchangeSession::Seriable, size=", data.size());
+				OctetsStream os(data);
+				PROTOCOL p;
+				try
+				{
+					for(;;)
+					{
+						os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
+						handle(p);
+						data = os.GetData();
+						Log::Error("ExchangeSession::Seriable, size=", data.size());
+					}
+				}
+				catch(...)
+				{
+					os >> OctetsStream::REVERT;
+				}
+			}
+		};
+
+		std::shared_ptr<TypeBase> type_base_ptr;
+		enum
+		{
+			TMP_BUFF_SIZE = 1024*128,
+		};
+		char tmp_buff[TMP_BUFF_SIZE];
+		size_t cur_cursor;
+
+		public:
+
+		template<typename PROTOCOL>
+		bool InitRecvHandle(std::function<void (const PROTOCOL &p)> handle)
+		{
+			if(type_base_ptr) { return false; }
+
+			type_base_ptr.reset(new Type<PROTOCOL>(handle));
+
+			return true;
+		}
+
+		public:
+
+		ExchangeSession(int fd)
+		: Session(fd)
+		, cur_cursor(0)
+		{}
+
+		bool Send(const Octets &data)
+		{
+			{
+				MutexGuard guard(send_buff_lock);
+				send_buff.insert(send_buff.end(), data.begin(), data.size());
+			}
+			RegisterSendEvent();
+			return true;
+		}
+	};
+
+	class AcceptSession final: public Session
+	{
+		public :
+			typedef std::function<void (session_id_t)> AcceptHandle;
+			AcceptSession(int fd, AcceptHandle ah)
+			: Session(fd)
+			, accept_handle(ah)
+			{}
+
+			virtual void NetRecv();
+			virtual void NetSend() {}
+
+			static bool Listen(const char *p, int port, AcceptHandle ah);
+		private:
+			AcceptHandle accept_handle;
+	};
+
+private:
+	Neter();
+	~Neter();
+
+	bool Ctl(int op, int fd, struct epoll_event *event);
+
+public:
+	static Neter& GetInstance() { static Neter instance; return instance; }
+
+	void Wait(time_t timeout = 1);
+
+	typedef std::function<void (session_id_t)> AcceptHandle;
+	static bool Listen(const char *ip, int port,  AcceptHandle handle);
+
+	bool Send(session_id_t sid, const Octets &data)
+	{
+		SessionMap::iterator it = session_map.find(sid);
+		if(it == session_map.end())
+		{
+			return false;
+		}
+
+		return it->second->Send(data);
+	}
+
+	session_id_t GetNextSessionID()
+	{
+		return sid_spawner++;
+	}
+
+	template<typename PROTOCOL>
+	bool InitRecvHandle(session_id_t sid, std::function<void (const PROTOCOL &p)> f)
+	{
+		SessionMap::iterator it = session_map.find(sid);
+		if(it == session_map.end())
+		{
+			return false;
+		}
+
+		ExchangeSession *pes = dynamic_cast<ExchangeSession *>(it->second);
+		return pes && pes->InitRecvHandle(f);
+	}
+
+private:
+	int epoll_fd;
+	session_id_t sid_spawner;
+
+private:
+	//typedef std::hash_set<ExchangeSessionPtr> ExchangeSessionPtrSet; 
+	//ExchangeSessionPtrSet exchange_session_ptr_set;
+	//
+	//typedef std::hash_map<std::pair<const std::string, int port>, AcceptSession *> AcceptSessionMap; 
+	//AcceptSessionMap accept_session_map;
+	typedef std::map<session_id_t, Session *> SessionMap;
+	SessionMap session_map;
+
+	enum
+	{
+		EPOLL_EVENT_SIZE = 1024,
+	};
+
+	struct epoll_event events[EPOLL_EVENT_SIZE];
+
+};
+
+namespace
+{
+
+struct NeterInit
+{
+	NeterInit()
+	{
+		Neter::GetInstance();
+	}
+};
+
+static NeterInit _neterinit_;
+
+}
+
+};
+
+#endif

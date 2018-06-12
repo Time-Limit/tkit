@@ -1,0 +1,287 @@
+#ifndef _NETER_H_
+#define _NETER_H_
+
+#include <functional>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/epoll.h>
+#include <netinet/in.h>
+#include <assert.h>
+#include <arpa/inet.h>
+#include <set>
+#include <memory>
+#include "lock.h"
+#include "octets.h"
+#include "exptype.h"
+#include <map>
+#include "log.h"
+
+namespace TCORE
+{
+
+class Neter
+{
+public:
+	typedef std::function<void (const Octets &data)> SendHandle;
+
+private:
+	class Session;
+	typedef std::shared_ptr<Session> SessionPtr;
+
+	struct BaseProtocolHandleContainer
+	{
+		virtual void Deseriable(SessionPtr ptr, Octets &data) = 0;
+		virtual ~BaseProtocolHandleContainer() {}
+	};
+
+	template<typename PROTOCOL>
+	class ProtocolHandleContainer : public BaseProtocolHandleContainer
+	{
+	public:
+		PROTOCOL type;
+		typedef std::function<void (const PROTOCOL &p, SendHandle)> ProtocolHandle;
+		ProtocolHandleContainer(ProtocolHandle p) : ph(p) {}
+
+		virtual void Deseriable(SessionPtr ptr, Octets &data)
+		{
+			OctetsStream os(data);
+			PROTOCOL p;
+			try
+			{
+				for(;;)
+				{
+					os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
+					ph(p, [ptr](const Octets &data) { ptr->Send(data); });
+				}
+			}
+			catch(...)
+			{
+				os >> OctetsStream::REVERT;
+			}
+			data = os.GetData();
+		}
+
+		ProtocolHandle GetPH() const { return ph; }
+	private:
+		ProtocolHandle ph;
+	};
+
+	typedef std::shared_ptr<BaseProtocolHandleContainer> PHCPtr;
+
+	class Session
+	{
+		enum
+		{
+			SEND_FLAG	= 0x01,
+			CLOSE_FLAG	= 0x02,
+		};
+
+	public:
+
+		void SetSendFlag() { status |= SEND_FLAG; }
+		void ClrSendFlag() { status &= (~SEND_FLAG); }
+		bool IsReadySend() const { return status & SEND_FLAG; }
+
+		void SetCloseFlag() { status |= CLOSE_FLAG; }
+		void ClrCloseFlag() { status &= (~CLOSE_FLAG); }
+		bool IsReadyClose() { return status & CLOSE_FLAG; }
+
+		Session(int f)
+		: id(Neter::GetInstance().GetNextSessionID())
+		, fd(f)
+		, status(0)
+		{
+			fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+		}
+
+		virtual ~Session() = 0;
+
+		virtual void NetSend() {};
+		virtual void NetRecv() {};
+
+		virtual bool Send(const Octets &data) { return false; }
+
+		template<typename PROTOCOL>
+		bool InitPHC(std::function<void (const PROTOCOL &, SendHandle)> f)
+		{
+			if(phc_ptr.get())
+			{
+				return false;
+			}
+
+			phc_ptr.reset(new ProtocolHandleContainer<PROTOCOL>(f));
+			return true;
+		}
+
+		bool InitPHC(PHCPtr p) 
+		{
+			if(phc_ptr.get())
+			{
+				return false;
+			}
+
+			phc_ptr = p;
+
+			return true;
+		}
+
+		int get_fd() { return fd; }
+		session_id_t ID() const { return id; }
+
+		void Handle(const epoll_event &event);
+
+		PHCPtr GetPHCPtr() const { return phc_ptr; }
+
+	private:
+		session_id_t id;
+		int fd;
+		unsigned char status;
+		PHCPtr phc_ptr;
+	};
+
+	class AcceptSession : public Session
+	{
+	public:
+		AcceptSession(int fd) : Session(fd) {}
+
+		virtual void NetRecv();
+	};
+
+	class ExchangeSession : public Session
+	{
+	public:
+		ExchangeSession(int fd) : Session(fd), cur_cursor(0) {}
+
+		virtual void NetRecv();
+		virtual void NetSend();
+
+		bool Send(const Octets &data)
+		{
+			MutexGuard guard(send_data_lock);
+			send_data.insert(send_data.end(), data.begin(), data.size());
+			return true;
+		}
+
+	private:
+		Mutex send_data_lock;
+		Octets send_data;
+		int64_t cur_cursor;
+
+		Octets recv_data;
+	};
+
+	typedef std::set<Session *> SessionPtrSet;
+	SessionPtrSet wait_handle_session;
+	SpinLock wait_handle_session_lock;
+
+	session_id_t sid_spawner;
+	int epoll_fd;
+
+	enum
+	{
+		EPOLL_EVENT_SIZE = 1024,
+	};
+	struct epoll_event events[EPOLL_EVENT_SIZE];
+
+	Neter()
+	: sid_spawner(0)
+	, epoll_fd(-1)
+	{
+		epoll_fd = epoll_create(1);
+		if(epoll_fd == -1)
+		{
+			Log::Error("Neter::Neter, error=", strerror(errno));
+			assert(false);
+		}
+	}
+
+	session_id_t GetNextSessionID() { return sid_spawner++; }
+
+	bool Ctl(int op, int fd, struct epoll_event *event);
+
+	typedef std::map<session_id_t, SessionPtr> SessionPtrMap;
+	SessionPtrMap session_ptr_map;
+
+	SessionPtr GetSessionPtr(session_id_t sid) const
+	{
+		SessionPtrMap::const_iterator cit = session_ptr_map.find(sid);
+
+		if(cit == session_ptr_map.end())
+		{
+			return SessionPtr(nullptr);
+		}
+
+		return cit->second;
+	}
+
+public:
+	void Wait(time_t timeout);
+
+	template<typename PROTOCOL>
+	static bool Listen(const char *ip, int port, std::function<void (const PROTOCOL &, SendHandle)> f);
+
+	static Neter& GetInstance() { static Neter instance; return instance; }
+};
+
+template<typename PROTOCOL>
+bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL &, Neter::SendHandle)> f)
+{
+	if(!ip)
+	{
+		Log::Error("AcceptSession::Listen, invalid ip address.");
+		return false;
+	}
+
+	int sockfd = 0;
+	int optval = -1;
+	struct sockaddr_in server;
+	socklen_t socklen = sizeof(struct sockaddr_in);
+
+	sockfd = socket(PF_INET, SOCK_STREAM, 0);
+
+	if(sockfd < 0)
+	{
+		Log::Error("AcceptSession::Listen, socket, error=", strerror(errno));
+		return false;
+	}
+
+	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	memset(&server, 0, socklen);
+	struct in_addr address;
+	if(inet_pton(AF_INET, ip, &address) == -1)
+	{
+		Log::Error("AcceptSession::inet_pton, ip=", ip, ", error=", strerror(errno));
+		return false;
+	}
+	server.sin_addr.s_addr = address.s_addr;
+	server.sin_port = htons(port);
+	server.sin_family = AF_INET;
+
+	if(bind(sockfd, (struct sockaddr *)&server, socklen) < 0)
+	{
+		Log::Error("AcceptSession::Listen, bind, error=", strerror(errno));
+		return false ;
+	}
+
+	listen(sockfd, 0);
+	Log::Debug("AcceptSession::Listen, fd=", sockfd);	
+
+	epoll_event ev;
+	ev.events = EPOLLIN|EPOLLET;
+	SessionPtr accept(new AcceptSession(sockfd));
+	accept->InitPHC<PROTOCOL>(f);
+	ev.data.ptr = accept.get();
+	Neter::GetInstance().Ctl(EPOLL_CTL_ADD, accept->get_fd(), &ev);
+	Neter::GetInstance().session_ptr_map.insert(std::make_pair(accept->ID(), accept));
+
+	return true;
+}
+
+}
+
+#endif

@@ -89,8 +89,12 @@ private:
 	pthread_t tid;
 	TaskPtr task;
 	static void* RunTask(void *task);
+	static void  exit_cur_thread(int);
+	static void  notify_task_quit(int);
 
 public:
+
+	pthread_t GetThreadID() const { return tid; }
 
 	explicit Thread(TaskPtr t) : tid(0x0), task(t) {}
 
@@ -103,7 +107,14 @@ public:
 		}
 	}
 
-	~Thread() { if(tid != 0x0) pthread_join(tid, nullptr); }
+	~Thread()
+	{
+		if(tid != 0x0)
+		{
+			pthread_kill(tid, SIGUSR1);
+			pthread_join(tid, nullptr);
+		}
+	}
 };
 
 class ThreadPool
@@ -162,6 +173,11 @@ public:
 			{
 				throw;
 			}
+
+			for(auto &t : threads)
+			{
+				t.Run();
+			}
 		}
 		catch(...)
 		{
@@ -171,6 +187,8 @@ public:
 			throw;
 		}
 	}
+
+	void Stop();
 
 	bool AddTask(TaskPtr ptr);
 };

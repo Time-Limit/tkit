@@ -2,8 +2,6 @@
 
 using namespace TCORE;
 
-ThreadPool Neter::threadpool(THREAD_COUNT, ThreadPool::PT_XT_TO_XQ, [](task_id_t task_id, size_t thread_size)->size_t { return task_id; });
-
 Neter::Session::Session(SESSION_TYPE t, int f)
 : fd(f)
 , type(t)
@@ -35,7 +33,7 @@ Neter::Session::Session(SESSION_TYPE t, int f)
 	}
 }
 
-void Neter::Session::Read()
+void Neter::Session::Read(SessionPtr ptr)
 {
 	if(TestEventFlag(CLOSE_READY))
 	{
@@ -43,7 +41,20 @@ void Neter::Session::Read()
 		return ;
 	}
 
+	if(false == TestEventFlag(READ_ACCESS))
+	{
+		return ;
+	}
+
+	ClrEventFlag(READ_ACCESS);
+
+
 	(this->*read_func_ptr)();
+
+	if(IsExchangeSession())
+	{
+		callback_ptr->Deserialize(ptr, read_data);
+	}
 }
 
 void Neter::Session::Close()
@@ -56,13 +67,6 @@ void Neter::Session::Close()
 
 void Neter::Session::AcceptorReadFunc()
 {
-	if(false == TestEventFlag(READ_ACCESS))
-	{
-		return ;
-	}
-
-	ClrEventFlag(READ_ACCESS);
-
 	int new_fd = -1;
 	struct sockaddr_in accept_addr;
 	int server_addr_len;
@@ -73,12 +77,16 @@ void Neter::Session::AcceptorReadFunc()
 
 		if(new_fd > 0)
 		{
+			fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL) | O_NONBLOCK);
 			// accept success
 			SessionPtr ptr(new Session(Session::EXCHANGE_SESSION, new_fd));
 			ptr->InitCallback(callback_ptr);
 			epoll_event ev;
 			ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
 			ev.data.ptr = ptr.get();
+
+			Neter::GetInstance().session_container.insert(std::make_pair((ptrdiff_t)(ptr.get()), ptr));
+			Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
 		}
 		else
 		{
@@ -103,13 +111,6 @@ void Neter::Session::AcceptorReadFunc()
 
 void Neter::Session::ExchangerReadFunc()
 {
-	if(false == TestEventFlag(READ_ACCESS))
-	{
-		return ;
-	}
-
-	ClrEventFlag(READ_ACCESS);
-
 	const size_t READ_BUFF_SIZE = 1024;
 	unsigned char read_buff[READ_BUFF_SIZE];
 	size_t allcnt = 0;
@@ -121,7 +122,7 @@ void Neter::Session::ExchangerReadFunc()
 		if(percnt > 0)
 		{
 			allcnt += percnt;
-			read_data.insert(read_data.end(), read_buff, READ_BUFF_SIZE);
+			read_data.insert(read_data.end(), read_buff, percnt);
 		}
 		else
 		{
@@ -129,7 +130,6 @@ void Neter::Session::ExchangerReadFunc()
 
 			if(errno == EINTR)
 			{
-				//try again
 			}
 			else if(errno == EAGAIN)
 			{
@@ -145,12 +145,9 @@ void Neter::Session::ExchangerReadFunc()
 
 	if(allcnt == 0)
 	{
-		//TCP-FIN
 		Close();
 		return ;
 	}
-
-	//serialize read_data
 }
 
 void Neter::Session::SecureExchangerReadFunc()
@@ -161,7 +158,7 @@ void Neter::Session::Send(const Octets &data)
 {
 }
 
-void Neter::Session::Write()
+void Neter::Session::Write(SessionPtr ptr)
 {
 	if(TestEventFlag(CLOSE_READY))
 	{
@@ -196,7 +193,7 @@ void Neter::Session::NotifyReadAccess(SessionPtr ptr)
 		return ;
 	}
 
-	bool res = Neter::threadpool.AddTask(TaskPtr(new SessionReadTask(ptr)));
+	bool res = Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionReadTask(ptr)));
 	if(res == false)
 	{
 		Log::Error("Neter::Session::NotifyReadAccess, add task failed !!!");
@@ -215,7 +212,7 @@ void Neter::Session::NotifyWriteAccess(SessionPtr ptr)
 		return ;
 	}
 
-	bool res = Neter::threadpool.AddTask(TaskPtr(new SessionReadTask(ptr)));
+	bool res = Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionReadTask(ptr)));
 	if(res == false)
 	{
 		Log::Error("Neter::Session::NotifyWriteAccess, add task failed!!!");

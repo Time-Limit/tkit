@@ -29,8 +29,9 @@ namespace TCORE
 class Neter
 {
 	class Session;
+public:
 	typedef std::shared_ptr<Session> SessionPtr;
-
+private:
 	class Session
 	{
 		struct CallbackBase
@@ -42,7 +43,26 @@ class Neter
 		template<typename PROTOCOL>
 		struct Callback : public CallbackBase
 		{
-			virtual void Deserialize(SessionPtr ptr, Octets &data) {}
+			virtual void Deserialize(SessionPtr ptr, Octets &data) override
+			{
+				OctetsStream os(data);
+				PROTOCOL p;
+				try
+				{
+					for(;;)
+					{
+						os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
+						callback(p, ptr);
+						Log::Trace("Neter::Session::Callback, serialize success !!!");
+					}
+				}
+				catch(...)
+				{
+					os >> OctetsStream::REVERT;
+				}
+
+				data = os.GetData();
+			}
 
 			typedef std::function<void (const PROTOCOL &, SessionPtr)> CallbackFunc;
 
@@ -97,8 +117,8 @@ class Neter
 		static void NotifyReadAccess(SessionPtr);
 		static void NotifyWriteAccess(SessionPtr);
 
-		void Read();
-		void Write();
+		void Read(SessionPtr ptr);
+		void Write(SessionPtr ptr);
 		void Send(const Octets &data);
 
 	private:
@@ -126,7 +146,7 @@ class Neter
 		bool TestEventFlag(event_flag_t e) const
 		{
 			SpinLockGuard guard(event_flag_lock);
-			return (event_flag&e == e) && e;
+			return ((event_flag&e) == e) && e;
 		}
 		void SetEventFlag(event_flag_t e)
 		{
@@ -190,6 +210,11 @@ class Neter
 		int fd;
 		SESSION_TYPE type;
 
+		bool IsExchangeSession() const
+		{
+			return type == EXCHANGE_SESSION || type == SECURE_EXCHANGE_SESSION;
+		}
+
 	public:
 		SESSION_TYPE GetType() const { return type; }
 		int GetFD() const { return fd; }
@@ -202,7 +227,7 @@ class Neter
 		void Exec()
 		{
 			ps->ClrEventFlag(Session::WRITE_READY);
-			ps->Write();
+			ps->Write(ps);
 		}
 
 	private:
@@ -216,7 +241,7 @@ class Neter
 		void Exec()
 		{
 			ps->ClrEventFlag(Session::READ_READY);
-			ps->Read();
+			ps->Read(ps);
 		}
 
 	private:
@@ -229,7 +254,12 @@ class Neter
 
 		void Exec()
 		{
-			Neter::GetInstance().Wait();
+			//TODO zmx
+			while(true)
+			{
+				Neter::GetInstance().Wait();
+			}
+
 		}
 	};
 
@@ -245,7 +275,7 @@ private:
 		THREAD_COUNT = 2,
 	};
 
-	static ThreadPool threadpool;//(THREAD_COUNT, ThreadPool::PT_XT_TO_XQ/*, [](task_id_t task_id, size_t thread_size)->size_t { return task_id; }*/);
+	ThreadPool threadpool;
 
 	enum
 	{
@@ -256,11 +286,17 @@ private:
 	int epoll_instance_fd;
 
 	Neter()
-	: epoll_instance_fd(epoll_create(1))
+	: threadpool(THREAD_COUNT, ThreadPool::PT_XT_TO_XQ, [](task_id_t task_id, size_t thread_size)->size_t { return task_id; })
+	, epoll_instance_fd(epoll_create(1))
 	{
 		if(epoll_instance_fd == -1)
 		{
 			Log::Error("Neter::Neter, create epoll instance failed, info=", strerror(errno));
+			return ;
+		}
+		if(!threadpool.AddTask(TaskPtr(new NeterPollTask())))
+		{
+			Log::Error("Neter::Neter, add poll task failed!!!");
 		}
 	}
 
@@ -322,6 +358,7 @@ bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL 
 	}
 
 	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL) | O_NONBLOCK);
 	memset(&server, 0, socklen);
 	struct in_addr address;
 	if(inet_pton(AF_INET, ip, &address) == -1)
@@ -346,7 +383,7 @@ bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL 
 	ev.events = EPOLLIN|EPOLLET;
 	SessionPtr ptr(new Session(Session::ACCEPTOR_SESSION, sockfd));
 	ptr->InitCallback<PROTOCOL>(callback);
-	Neter::GetInstance().session_container.insert(std::make_pair(static_cast<ptrdiff_t>(ptr.get()), ptr));
+	Neter::GetInstance().session_container.insert(std::make_pair((ptrdiff_t)(ptr.get()), ptr));
 	ev.data.ptr = ptr.get();
 	Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
 

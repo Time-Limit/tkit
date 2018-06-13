@@ -1,5 +1,5 @@
 ConfigTable = {
-	["http-port"] = 80,
+	["http-port"] = 8080,
 	["https-port"] = 443,
 		["base-folder"] = "./blog/public/",
 	--	["base-folder"] = "./../core/certbot/cert/",

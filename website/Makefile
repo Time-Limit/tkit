@@ -1,15 +1,11 @@
 .PHONY: website clean test
 CC = g++
 
-core_objs = config.cpp file.cpp log.cpp md5.cpp neter.cpp octets.cpp threadpool.cpp
 core_objs = ../core/base/neter.o ../core/base/log.o ../core/base/octets.o \
-	    ../core/base/threadpool.o ../core/base/md5.o ../core/base/config.h \
-	    ../core/base/file.o ../core/inl/enums.o ../core/base/protocol.o
+	    ../core/base/threadpool.o ../core/base/md5.o ../core/base/config.o \
+	    ../core/base/file.o ../core/base/protocol.o ../core/inl/enums.o
 
-# ../core/base/config.o ../core/base/task.o ../core/inl/enums.o ../core/base/file.o \
-#	    ../core/base/md5.o ../core/base/session.o ../core/base/protocol.o
-
-website_objs = website.o websitetask.o websitebase.o
+website_objs = website.o websitebase.o
 
 lib_objs = ../core/lib/lua/liblua.a -lssl -lcrypto
 
@@ -27,11 +23,5 @@ website: $(objs)
 $(objs) : %.o : %.cpp
 	$(CC) -c $^ -o $@ $(inl) -lpthread $(args) $(flag)
 
-test.o : test.cpp
-	$(CC) -c test.cpp -o test.o $(inl) -lpthread ${args} $(flag)
-
-test: $(core_objs) test.o
-	$(CC) -o test $^ -lpthread -ldl $(lib_objs) $(args) $(flag)
-
 clean:
-	rm -f $(objs) website test test.o
+	rm -f $(objs) website

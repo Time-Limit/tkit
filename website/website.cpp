@@ -3,6 +3,7 @@
 
 #include "websitebase.h"
 #include "threadpool.h"
+#include "protocol.h"
 #include "config.h"
 #include "neter.h"
 #include "file.h"
@@ -55,9 +56,9 @@ int main(int argc, char **argv)
 	default_base_folder = website_config["base-folder"].Str();
 	default_file_name = website_config["default-file-name"].Str();
 
-	bool res = Neter::Listen<char>("0.0.0.0", default_http_port, [](const char &p, Neter::SessionPtr ptr)->void
+	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, [](const HttpRequest &p, Neter::SessionPtr ptr)->void
 								{
-									std::cout << p << std::endl;
+									std::cout << p.url << std::endl;
 								});
 
 

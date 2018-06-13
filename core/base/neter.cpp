@@ -3,7 +3,8 @@
 using namespace TCORE;
 
 Neter::Session::Session(SESSION_TYPE t, int f)
-: fd(f)
+: event_flag(0)
+, fd(f)
 , type(t)
 {
 	//TODO zmx
@@ -251,6 +252,8 @@ void Neter::Wait(time_t timeout)
 		SpinLockGuard guard(ready_close_session_list_lock);
 		swap(tmp_ready_close_session_list, ready_close_session_list);
 	}while(0);
+
+	Log::Trace("Neter::Wait, ", tmp_ready_close_session_list.size(), " sessions will close!");
 
 	for(auto addr : tmp_ready_close_session_list)
 	{

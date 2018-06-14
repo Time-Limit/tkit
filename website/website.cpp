@@ -59,23 +59,19 @@ int main(int argc, char **argv)
 	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, [](const HttpRequest &p, Neter::SessionPtr ptr)->void
 								{
 									std::cout << p.url << std::endl;
+									HttpResponse res;
+									res.version = "HTTP/1.0";
+									res.status = 200;
+									res.statement = "OK";
+									OctetsStream os;
+									os << res;
+									ptr->Send(os.GetData());
 								});
 
 
 	std::cout << "main-function, result of Neter::Listen is " << res << std::endl;
 
 	WaitSignal::GetInstance().Wait();
-
-	//std::shared_ptr<HttpsSessionManager> https_session_manager(new HttpsSessionManager(https_protocol_handler));
-	//assert(https_session_manager->InitSSLData(website_config));
-	//assert(Acceptor::Listen("0.0.0.0", default_https_port, [https_session_manager](int fd) ->void { https_session_manager->OnConnect(fd); }));
-	//
-	//std::shared_ptr<HttpSessionManager> http_session_manager(new HttpSessionManager(http_protocol_handler));
-	//assert(Acceptor::Listen("0.0.0.0", default_http_port, [http_session_manager](int fd) ->void { http_session_manager->OnConnect(fd); }));
-	//
-	//ThreadPool::GetInstance().AddTask(new WebsiteTask());
-	//
-	//ThreadPool::GetInstance().Start();
 
 	return 0;
 }

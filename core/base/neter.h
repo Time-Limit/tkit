@@ -103,13 +103,15 @@ private:
 	public:
 		enum EVENT_FLAG
 		{
-			READ_ACCESS = 0x1,
-			READ_READY  = 0x2,
-			WRITE_ACCESS= 0x4,
-			WRITE_READY = 0x8,
-			CLOSE_READY = 0x10,
+			READ_ACCESS	= 0x1,
+			READ_PENDING	= 0x2,
+			WRITE_ACCESS	= 0x4,
+			WRITE_READY	= 0x8,
+			WRITE_PENDING	= 0x10,
+			CLOSE_READY	= 0x20,
 
-			EVENT_FLAG_MASK = READ_ACCESS | READ_READY | WRITE_ACCESS | WRITE_READY | CLOSE_READY,
+			EMPTY_EVENT_FLAG = 0x0,
+			EVENT_FLAG_MASK = READ_ACCESS | READ_PENDING | WRITE_ACCESS | WRITE_READY | WRITE_PENDING | CLOSE_READY,
 		};
 
 		typedef unsigned char event_flag_t;
@@ -132,12 +134,13 @@ private:
 		mutable SpinLock send_data_list_lock;
 
 	public:
-		bool TestAndSetEventFlag(event_flag_t t, event_flag_t except = 0)
+		bool TestAndModifyEventFlag(event_flag_t test, event_flag_t except, event_flag_t set, event_flag_t clear)
 		{
 			SpinLockGuard guard(event_flag_lock);
-			if((event_flag&t) == except)
+			if((event_flag&test) == except)
 			{
-				(event_flag |= t) &= EVENT_FLAG_MASK;
+				(event_flag |= set) &= EVENT_FLAG_MASK;
+				(event_flag &= ~clear);
 				return true;
 			}
 			return false;
@@ -179,6 +182,8 @@ private:
 		{
 			Log::Error("Session::DefaultWriteFunc, you should never call me.");
 		}
+
+		void ExchangerWriteFunc();
 
 	public:
 		void Close();

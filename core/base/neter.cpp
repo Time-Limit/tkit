@@ -4,12 +4,11 @@ using namespace TCORE;
 
 Neter::Session::Session(SESSION_TYPE t, int f)
 : event_flag(0)
+, read_func_ptr(DefaultReadFunc)
+, write_func_ptr(DefaultWriteFunc)
 , fd(f)
 , type(t)
 {
-	//TODO zmx
-	write_func_ptr = &Session::DefaultWriteFunc;
-
 	switch(type)
 	{
 		case ACCEPTOR_SESSION:
@@ -19,6 +18,7 @@ Neter::Session::Session(SESSION_TYPE t, int f)
 		case EXCHANGE_SESSION:
 		{
 			read_func_ptr = &Session::ExchangerReadFunc;
+			write_func_ptr = &Session::ExchangerWriteFunc;
 		}break;
 		case SECURE_EXCHANGE_SESSION:
 		{
@@ -26,6 +26,7 @@ Neter::Session::Session(SESSION_TYPE t, int f)
 		}break;
 		default:
 		{
+			event_flag = 0;
 			fd = -1;
 			type = INVALID_SESSION;
 			read_func_ptr = nullptr;
@@ -34,33 +35,9 @@ Neter::Session::Session(SESSION_TYPE t, int f)
 	}
 }
 
-void Neter::Session::Read(SessionPtr ptr)
-{
-	if(TestEventFlag(CLOSE_READY))
-	{
-		Log::Trace("Neter::Session::Read, I am closing.");
-		return ;
-	}
-
-	if(false == TestEventFlag(READ_ACCESS))
-	{
-		return ;
-	}
-
-	ClrEventFlag(READ_ACCESS);
-
-
-	(this->*read_func_ptr)();
-
-	if(IsExchangeSession())
-	{
-		callback_ptr->Deserialize(ptr, read_data);
-	}
-}
-
 void Neter::Session::Close()
 {
-	if(TestAndSetEventFlag(CLOSE_READY))
+	if(TestAndSetEventFlag(CLOSE_READY, 0 CLOSE_READY))
 	{
 		Neter::GetInstance().AddReadyCloseSession((ptrdiff_t)this);
 	}
@@ -151,12 +128,47 @@ void Neter::Session::ExchangerReadFunc()
 	}
 }
 
-void Neter::Session::SecureExchangerReadFunc()
+void Neter::Session::SecureExchangerWriteFunc()
+{
+	SendDataList tmp_send_data_list;
+	{
+		SpinLockGuard guard(send_data_list_lock);
+		swap(tmp_send_data_list, send_data_list);
+	}
+
+	while(tmp_send_data_list.size())
+	{
+
+	}
+}
+
+void Neter::Session::ExchangerWriteFunc()
 {
 }
 
-void Neter::Session::Send(const Octets &data)
+void Neter::Session::Read(SessionPtr ptr)
 {
+	if(TestEventFlag(CLOSE_READY))
+	{
+		Log::Trace("Neter::Session::Read, I am closing.");
+		return ;
+	}
+
+	if(false == TestEventFlag(READ_ACCESS))
+	{
+		Log::Error("Neter::Session::Read, try agian.");
+		return ;
+	}
+
+	ClrEventFlag(READ_ACCESS);
+
+
+	(this->*read_func_ptr)();
+
+	if(IsExchangeSession())
+	{
+		callback_ptr->Deserialize(ptr, read_data);
+	}
 }
 
 void Neter::Session::Write(SessionPtr ptr)
@@ -166,6 +178,14 @@ void Neter::Session::Write(SessionPtr ptr)
 		Log::Trace("Neter::Session::Write, I am closing.");
 		return ;
 	}
+
+	if(false == TestEventFlag(WRITE_ACCESS))
+	{
+		Log::Error("Neter::Session::Write, try agian.");
+		return ;
+	}
+
+	ClrEventFlag(WRITE_ACCESS);
 
 	(this->*write_func_ptr)();
 }
@@ -182,41 +202,55 @@ bool Neter::Ctrl(int op, int fd, struct epoll_event *event)
 }
 
 void Neter::Session::NotifyReadAccess(SessionPtr ptr)
-
 {
-	if(false == ptr->TestAndSetEventFlag(READ_ACCESS))
+	if(false == ptr->TestAndModifyEventFlag(READ_ACCESS|READ_READY, EMPTY_EVENT_FLAG, READ_ACCESS, EMPTY_EVENT_FLAG))
 	{
+		Log::Debug("Neter::Session::NotifyReadAccess, unexcept event flag");
 		return ;
 	}
 
-	if(false == ptr->TestAndSetEventFlag(READ_READY))
+	if(Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionReadTask(ptr)))
 	{
-		return ;
-	}
-
-	bool res = Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionReadTask(ptr)));
-	if(res == false)
-	{
+		ptr->SetEventFlag(READ_READY);
 		Log::Error("Neter::Session::NotifyReadAccess, add task failed !!!");
+		return ;
 	}
+}
+
+void Neter::Session::Send(const Octets &data)
+{
+	{
+		SpinLockGuard guard(send_data_list_lock);
+		send_data_list.push_back(data);
+	}
+
+	event_flag_lock.Lock();
+	if(event_flag & (WRITE_ACCESS|WRITE_READY) == WRITE_ACCESS)
+	{
+		event_flag |= WRITE_READY;
+		event_flag_lock.Unlock();
+		if(false == Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionWriteTask(ptr))))
+		{
+			Log::Error("Neter::Session::Send, add task failed !!!");
+			return ;
+		}
+		return ;
+	}
+	event_flag_lock.Unlock();
 }
 
 void Neter::Session::NotifyWriteAccess(SessionPtr ptr)
 {
-	if(false == ptr->TestAndSetEventFlag(WRITE_ACCESS))
+	if(false == ptr->TestAndModifyEventFlag(WRITE_ACCESS|WRITE_READY, WRITE_ACCESS, WRITE_READY, WRITE_ACCESS))
 	{
+		Log::Debug("Neter::Session::NotifyWriteAccess, unexcept event flag");
 		return ;
 	}
 
-	if(false == ptr->TestAndSetEventFlag(WRITE_READY))
-	{
-		return ;
-	}
-
-	bool res = Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionReadTask(ptr)));
-	if(res == false)
+	if(false == Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionWriteTask(ptr)))
 	{
 		Log::Error("Neter::Session::NotifyWriteAccess, add task failed!!!");
+		return ;
 	}
 }
 

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <unistd.h>
 
+#include "websitetask.h"
 #include "websitebase.h"
 #include "threadpool.h"
 #include "protocol.h"
@@ -55,19 +56,41 @@ int main(int argc, char **argv)
 	default_http_port = website_config["http-port"].Num();
 	default_base_folder = website_config["base-folder"].Str();
 	default_file_name = website_config["default-file-name"].Str();
+	default_logic_thread_count = website_config["default-logic-thread-count"].Num();
 
-	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, [](const HttpRequest &p, session_id_t sid)->void
+	ThreadPool logic_thread_pool(default_logic_thread_count, ThreadPool::PT_XT_TO_XQ,
+				[](task_id_t task_id, size_t thread_size)->size_t
+				{
+					return task_id%thread_size;
+				});
+
+	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, [&logic_thread_pool](const HttpRequest &p, session_id_t sid)->void
 								{
-									std::cout << p.url << std::endl;
-									HttpResponse res;
-									res.version = "HTTP/1.1";
-									res.status = 200;
-									res.statement = "OK";
-									Neter::SendProtocol(sid, res);
+									logic_thread_pool.AddTask(TaskPtr(new HandleHttpRequestTask(sid, sid, p)));
+								});
+	
+	bool connect_res = Neter::Connect<HttpResponse>("119.75.213.61", 80, 
+								[](session_id_t sid)
+								{
+									HttpRequest req;
+									HttpPacketVisitor<HttpRequest> visitor(req);
+									visitor.SetURL("/");
+									visitor.SetVersion("HTTP/1.1");
+									visitor.SetMethod("GET");
+									visitor.SetHeader("User-Agent", "curl/7.29.0");
+									visitor.SetHeader("Accept", "*/*");
+									visitor.SetHeader("Host", "119.75.213.61");
+
+									Neter::SendProtocol(sid, req);
+								}, 
+								[](const HttpResponse &p, session_id_t sid)->void
+								{
+									std::cout << "receive response !!!" << std::endl;
 								});
 
 
 	std::cout << "main-function, result of Neter::Listen is " << res << std::endl;
+	std::cout << "main-function, result of Neter::Connect is " << connect_res << std::endl;
 
 	WaitSignal::GetInstance().Wait();
 

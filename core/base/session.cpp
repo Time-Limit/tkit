@@ -17,6 +17,10 @@ Neter::Session::Session(session_id_t s, SESSION_TYPE t, int f)
 		{
 			read_func_ptr = &Session::AcceptorReadFunc;
 		}break;
+		case CONNECTOR_SESSION:
+		{
+			write_func_ptr = &Session::ConnectorWriteFunc;
+		}break;
 		case EXCHANGE_SESSION:
 		{
 			read_func_ptr = &Session::ExchangerReadFunc;
@@ -88,6 +92,10 @@ bool Neter::Session::TestAndModifyEventFlag(event_flag_t test, event_flag_t exce
 	return false;
 }
 
+void Neter::Session::ConnectorWriteFunc()
+{
+}
+
 void Neter::Session::AcceptorReadFunc()
 {
 	int new_fd = -1;
@@ -142,6 +150,7 @@ void Neter::Session::ExchangerReadFunc()
 	for(;;)
 	{
 		percnt = read(fd, read_buff, READ_BUFF_SIZE);
+		Log::Error("Neter::Session::ExchangerReadFunc, cnt=", percnt);
 		if(percnt > 0)
 		{
 			allcnt += percnt;

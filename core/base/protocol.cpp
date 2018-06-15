@@ -32,9 +32,18 @@ OctetsStream& HttpResponse::Deserialize(OctetsStream &os)
 				{
 					version += c;
 				}
-				os >> status;
+
+				for(status = 0, os >> c; c != ' '; os >> c)
+				{
+					if(c < '0' || '9' < c)
+					{
+						throw "except number";
+					}
+					(status *= 10) += c-'0';
+				}
+
 				unsigned char next = 0;
-				for(os >> next >> c >> next; c != '\r' || next != '\n'; c = next, os >> next)
+				for(os >> c >> next; c != '\r' || next != '\n'; c = next, os >> next)
 				{
 					statement += c;
 				}

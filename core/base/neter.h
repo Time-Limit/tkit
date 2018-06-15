@@ -40,9 +40,11 @@ class Neter
 		enum SESSION_TYPE
 		{
 			INVALID_SESSION = -1,
+
 			ACCEPTOR_SESSION = 0,
-			EXCHANGE_SESSION = 1,
-			SECURE_EXCHANGE_SESSION = 2,
+			CONNECTOR_SESSION,
+			EXCHANGE_SESSION,
+			SECURE_EXCHANGE_SESSION,
 		};
 
 		Session(session_id_t sid, SESSION_TYPE type, int fd);
@@ -140,6 +142,7 @@ class Neter
 		InnerWriteFuncPtr write_func_ptr;
 		void DefaultWriteFunc() { Log::Error("Session::DefaultWriteFunc, you should never call me."); }
 		void ExchangerWriteFunc();
+		void ConnectorWriteFunc();
 
 		//HANDLE READ/WRITE PART END
 	};
@@ -222,6 +225,10 @@ public:
 	template<typename PROTOCOL>
 	static bool Listen(const char *ip, int port, std::function<void (const PROTOCOL &, session_id_t)> callback);
 
+	typedef std::function<void (session_id_t sid)> ConnectCallback;
+	template<typename PROTOCOL>
+	static bool Connect(const char *ip, int port, ConnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback);
+
 	template<typename PROTOCOL>
 	static bool SendProtocol(session_id_t sid, const PROTOCOL &protocol);
 
@@ -252,6 +259,43 @@ bool Neter::SendProtocol(session_id_t sid, const PROTOCOL &protocol)
 	}
 
 	return false;
+}
+
+template<typename PROTOCOL>
+bool Neter::Connect(const char *ip, int port, ConnectCallback connect_callback, std::function<void (const PROTOCOL &, session_id_t)> callback)
+{
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if(sock < 0)
+	{
+		Log::Error("Neter::Connect, ip=", ip, " ,port=", port, " ,info=", strerror(errno));
+		return false;
+	}
+
+	struct sockaddr_in addr;
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(port);
+	addr.sin_addr.s_addr = inet_addr(ip);
+
+	if(connect(sock, (sockaddr*)&addr, sizeof(addr)) < 0)
+	{
+		Log::Error("Neter::Connect, ip=", ip, " ,port=", port, ", connect failed, info=", strerror(errno));
+		close(sock);
+		return false;
+	}
+
+	fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
+
+	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, sock));
+	ptr->InitCallback(callback);
+	epoll_event ev;
+	ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
+	ev.data.u64 = ptr->GetSID();
+
+	Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
+	Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
+	connect_callback(ptr->GetSID());
+	return true;
 }
 
 template<typename PROTOCOL>
@@ -343,11 +387,12 @@ void Neter::Session::Callback<PROTOCOL>::Deserialize(session_id_t sid, Octets &d
 		{
 			os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
 			callback(p, sid);
-			Log::Trace("Neter::Session::Callback, serialize success !!!");
+			Log::Trace("Neter::Session::Callback, deserialize success !!!");
 		}
 	}
 	catch(...)
 	{
+		Log::Trace("Neter::Session::Callback, deserialize throw exception !!!");
 		os >> OctetsStream::REVERT;
 	}
 

@@ -23,10 +23,4 @@ inline std::string GetFileSuffixName(const std::string &str)
 	return "";
 }
 
-#define ResetHttpResponseStatus( r, s) { (r).status = (s); (r).statement = GetStatusCodeInfo(s); }
-#define ExceptHeaderExist(r, h) if((r).headers.find((h)) != (r).headers.cend())
-#define ExceptHeaderNotExist(r, h) if((r).headers.find((h)) == (r).headers.cend())
-#define TrySetHeader(r, h, v) { ExceptHeaderNotExist((r), (h)) { (r).headers[(h)] = (v); } }
-#define ForceSetHeader(r, h, v) { (r).headers[(h)] = (v); }
-
 #endif

@@ -3,7 +3,8 @@ CC = g++
 
 core_objs = ../core/base/neter.o ../core/base/log.o ../core/base/octets.o \
 	    ../core/base/threadpool.o ../core/base/md5.o ../core/base/config.o \
-	    ../core/base/file.o ../core/base/protocol.o ../core/inl/enums.o
+	    ../core/base/file.o ../core/base/protocol.o ../core/inl/enums.o \
+	    ../core/base/session.o
 
 website_objs = website.o websitebase.o
 
@@ -13,7 +14,7 @@ objs = $(core_objs) $(website_objs)
 
 inl = -I../core/base -I../core/lib/lua -I../core/inl -I.
 
-flag = -D_LITTLE_ENDIAN_ -D_NORMAL_THREAD_COUNT_=8
+flag = -D_LITTLE_ENDIAN_
 
 args = -Wall -g -std=c++11
 

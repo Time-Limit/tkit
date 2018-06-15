@@ -56,16 +56,14 @@ int main(int argc, char **argv)
 	default_base_folder = website_config["base-folder"].Str();
 	default_file_name = website_config["default-file-name"].Str();
 
-	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, [](const HttpRequest &p, Neter::SessionPtr ptr)->void
+	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, [](const HttpRequest &p, session_id_t sid)->void
 								{
 									std::cout << p.url << std::endl;
 									HttpResponse res;
-									res.version = "HTTP/1.0";
+									res.version = "HTTP/1.1";
 									res.status = 200;
 									res.statement = "OK";
-									OctetsStream os;
-									os << res;
-									ptr->Send(os.GetData());
+									Neter::SendProtocol(sid, res);
 								});
 
 

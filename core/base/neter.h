@@ -29,45 +29,56 @@ namespace TCORE
 class Neter
 {
 	class Session;
-public:
 	typedef std::shared_ptr<Session> SessionPtr;
-private:
+	friend class Session;
 	class Session
 	{
+		friend class Neter;
+
+		// BASE DATA/METHOD BEGIN
+		
+		enum SESSION_TYPE
+		{
+			INVALID_SESSION = -1,
+			ACCEPTOR_SESSION = 0,
+			EXCHANGE_SESSION = 1,
+			SECURE_EXCHANGE_SESSION = 2,
+		};
+
+		Session(session_id_t sid, SESSION_TYPE type, int fd);
+	public:
+		~Session();
+	private:
+		void Close();
+
+		session_id_t sid;
+		int fd;
+		SESSION_TYPE type;
+
+		bool IsExchangeSession() const { return type == EXCHANGE_SESSION || type == SECURE_EXCHANGE_SESSION; }
+		bool IsInitSuccess() const { return type != INVALID_SESSION; }
+
+		SESSION_TYPE GetType() const { return type; }
+		int GetFD() const { return fd; }
+		session_id_t GetSID() const { return sid; }
+
+		// BASE DATA/METHOD END
+
+		//CALLBACK PART BEGIN
+		
 		struct CallbackBase
 		{
-			virtual void Deserialize(SessionPtr, Octets &) = 0;
+			virtual void Deserialize(session_id_t, Octets &) = 0;
 			virtual ~CallbackBase() {};
 		};
 
 		template<typename PROTOCOL>
 		struct Callback : public CallbackBase
 		{
-			virtual void Deserialize(SessionPtr ptr, Octets &data) override
-			{
-				OctetsStream os(data);
-				PROTOCOL p;
-				try
-				{
-					for(;;)
-					{
-						os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
-						callback(p, ptr);
-						Log::Trace("Neter::Session::Callback, serialize success !!!");
-					}
-				}
-				catch(...)
-				{
-					os >> OctetsStream::REVERT;
-				}
-
-				data = os.GetData();
-			}
-
-			typedef std::function<void (const PROTOCOL &, SessionPtr)> CallbackFunc;
-
+			virtual void Deserialize(session_id_t sid, Octets &data) override;
+			typedef std::function<void (const PROTOCOL &, session_id_t)> CallbackFunc;
 			explicit Callback(CallbackFunc cb) : callback(cb) {}
-			Callback(const Callback &c) : callback(c.callback) {}
+			explicit Callback(const Callback &c) : callback(c.callback) {}
 
 		private:
 			CallbackFunc callback;
@@ -76,31 +87,16 @@ private:
 		typedef std::shared_ptr<CallbackBase> CallbackPtr;
 		CallbackPtr callback_ptr;
 
-	public:
 		template<typename CALLBACKPTR>
-		void InitCallback(CALLBACKPTR cb)
-		{
-			if(callback_ptr.get())
-			{
-				Log::Error("Neter::Session::InitCallback, forbid reset callback!");
-				return ;
-			}
-
-			callback_ptr = cb;
-		}
+		void InitCallback(CALLBACKPTR cb);
 
 		template<typename PROTOCOL>
-		void InitCallback(std::function<void (const PROTOCOL &, SessionPtr)> callback)
-		{
-			if(callback_ptr.get())
-			{
-				Log::Error("Neter::Session::InitCallback, forbid reset callback!");
-				return ;
-			}
-			callback_ptr.reset(new Callback<PROTOCOL>(callback));
-		}
+		void InitCallback(std::function<void (const PROTOCOL &, session_id_t)> callback);
 
-	public:
+		//CALLBACK PART END
+
+		//HANDLE READ/WRITE PART BEGIN
+		
 		enum EVENT_FLAG
 		{
 			READ_ACCESS	= 0x1,
@@ -114,127 +110,46 @@ private:
 			EVENT_FLAG_MASK = READ_ACCESS | READ_PENDING | WRITE_ACCESS | WRITE_READY | WRITE_PENDING | CLOSE_READY,
 		};
 
-		typedef unsigned char event_flag_t;
-
-		static void NotifyReadAccess(SessionPtr);
-		static void NotifyWriteAccess(SessionPtr);
-
-		void Read(SessionPtr ptr);
-		void Write(SessionPtr ptr);
-		void Send(const Octets &data);
-
-	private:
 		mutable SpinLock event_flag_lock;
+		typedef unsigned char event_flag_t;
 		event_flag_t event_flag;
 
+		bool TestAndModifyEventFlag(event_flag_t test, event_flag_t except, event_flag_t set, event_flag_t clear);
+		bool TestEventFlag(event_flag_t e) const;
+		void SetEventFlag(event_flag_t e);
+		void ClrEventFlag(event_flag_t e);
+
+		static void Read(SessionPtr ptr);
 		Octets read_data;
 
+		static void Write(SessionPtr ptr);
 		typedef std::list<Octets> SendDataList;
 		SendDataList send_data_list;
 		mutable SpinLock send_data_list_lock;
+		size_t cursor_of_first_send_data;
+		static bool AppendSendData(SessionPtr ptr, const Octets &data);
 
-	public:
-		bool TestAndModifyEventFlag(event_flag_t test, event_flag_t except, event_flag_t set, event_flag_t clear)
-		{
-			SpinLockGuard guard(event_flag_lock);
-			if((event_flag&test) == except)
-			{
-				(event_flag |= set) &= EVENT_FLAG_MASK;
-				(event_flag &= ~clear);
-				return true;
-			}
-			return false;
-		}
-
-		bool TestEventFlag(event_flag_t e) const
-		{
-			SpinLockGuard guard(event_flag_lock);
-			return ((event_flag&e) == e) && e;
-		}
-		void SetEventFlag(event_flag_t e)
-		{
-			SpinLockGuard guard(event_flag_lock);
-			(event_flag |= e) &= EVENT_FLAG_MASK;
-		}
-		void ClrEventFlag(event_flag_t e)
-		{
-			SpinLockGuard guard(event_flag_lock);
-			event_flag &= ((~e)&EVENT_FLAG_MASK);
-		}
-
-	private:
 		typedef void (Session::*InnerReadFuncPtr)();
 		InnerReadFuncPtr read_func_ptr;
-
-		void DefaultReadFunc()
-		{
-			Log::Error("Session::DefaultReadFunc, you should never call me.");
-		}
-
+		void DefaultReadFunc() { Log::Error("Session::DefaultReadFunc, you should never call me."); }
 		void AcceptorReadFunc();
 		void ExchangerReadFunc();
 		void SecureExchangerReadFunc();
 
 		typedef void (Session::*InnerWriteFuncPtr)();
 		InnerWriteFuncPtr write_func_ptr;
-
-		void DefaultWriteFunc()
-		{
-			Log::Error("Session::DefaultWriteFunc, you should never call me.");
-		}
-
+		void DefaultWriteFunc() { Log::Error("Session::DefaultWriteFunc, you should never call me."); }
 		void ExchangerWriteFunc();
 
-	public:
-		void Close();
-
-		enum SESSION_TYPE
-		{
-			INVALID_SESSION = -1,
-			ACCEPTOR_SESSION = 0,
-			EXCHANGE_SESSION = 1,
-			SECURE_EXCHANGE_SESSION = 2,
-		};
-
-		Session(SESSION_TYPE type, int fd);
-		~Session()
-		{
-			int res = close(fd);
-			if(res == -1)
-			{
-				Log::Error("Session::~Session, close fd failed, info=", strerror(errno));
-			}
-			else
-			{
-				Log::Debug("Sesssion::~Session, close success!");
-			}
-		}
-		bool IsInitSuccess() const { return type != INVALID_SESSION; }
-
-	private:
-		int fd;
-		SESSION_TYPE type;
-
-		bool IsExchangeSession() const
-		{
-			return type == EXCHANGE_SESSION || type == SECURE_EXCHANGE_SESSION;
-		}
-
-	public:
-		SESSION_TYPE GetType() const { return type; }
-		int GetFD() const { return fd; }
+		//HANDLE READ/WRITE PART END
 	};
+	// session end
 
+private:
 	struct SessionWriteTask : public Task
 	{
 		SessionWriteTask(SessionPtr p) : Task(RDWR_TASK),  ps(p) {} 
-
-		void Exec()
-		{
-			ps->ClrEventFlag(Session::WRITE_READY);
-			ps->Write(ps);
-		}
-
+		void Exec() { Session::Write(ps); }
 	private:
 		SessionPtr ps;
 	};
@@ -242,13 +157,7 @@ private:
 	struct SessionReadTask : public Task
 	{
 		SessionReadTask(SessionPtr p) : Task(RDWR_TASK), ps(p) {}
-
-		void Exec()
-		{
-			ps->ClrEventFlag(Session::READ_READY);
-			ps->Read(ps);
-		}
-
+		void Exec() { Session::Read(ps); }
 	private:
 		SessionPtr ps;
 	};
@@ -256,20 +165,21 @@ private:
 	struct NeterPollTask : public Task
 	{
 		NeterPollTask() : Task(POLL_TASK) {}
-
-		void Exec()
-		{
-			//TODO zmx
-			while(true)
-			{
-				Neter::GetInstance().Wait();
-			}
-
-		}
+		void Exec() { while(true) { Neter::GetInstance().Wait(); } }
 	};
 
-	typedef std::map<ptrdiff_t, SessionPtr> SessionContainer;
+	static void TryAddReadTask(SessionPtr ptr);
+	static void TryAddWriteTask(SessionPtr ptr);
+
+	mutable SpinLock session_container_lock;
+	typedef std::map<session_id_t, SessionPtr> SessionContainer;
 	SessionContainer session_container;
+
+	SessionPtr GetSession(session_id_t sid) const;
+
+	typedef std::list<session_id_t> SessionKeyList;
+	SessionKeyList ready_close_session_list;
+	SpinLock ready_close_session_list_lock;
 
 private:
 	enum
@@ -279,7 +189,6 @@ private:
 
 		THREAD_COUNT = 2,
 	};
-
 	ThreadPool threadpool;
 
 	enum
@@ -290,58 +199,63 @@ private:
 
 	int epoll_instance_fd;
 
-	Neter()
-	: threadpool(THREAD_COUNT, ThreadPool::PT_XT_TO_XQ, [](task_id_t task_id, size_t thread_size)->size_t { return task_id; })
-	, epoll_instance_fd(epoll_create(1))
-	{
-		if(epoll_instance_fd == -1)
-		{
-			Log::Error("Neter::Neter, create epoll instance failed, info=", strerror(errno));
-			return ;
-		}
-		if(!threadpool.AddTask(TaskPtr(new NeterPollTask())))
-		{
-			Log::Error("Neter::Neter, add poll task failed!!!");
-		}
-	}
-
-	~Neter()
-	{
-		if(epoll_instance_fd != -1)
-		{
-			int res = close(epoll_instance_fd);
-			if(res == -1)
-			{
-				Log::Error("Neter::~Neter, close epoll instance failed, info=", strerror(errno));
-			}
-		}
-	}
+	Neter();
+	~Neter();
 
 	bool Ctrl(int op, int fd, struct epoll_event *event);
 
-	typedef std::list<ptrdiff_t> SessionKeyList;
-	SessionKeyList ready_close_session_list;
-	SpinLock ready_close_session_list_lock;
+	void Wait(time_t timeout = 1000);
+
+	SpinLock session_id_spawner_lock;
+	session_id_t session_id_spawner;
+
+	session_id_t GenerateSessionID() { SpinLockGuard guard(session_id_spawner_lock); return ++session_id_spawner; }
 
 public:
 
-	void AddReadyCloseSession(ptrdiff_t session_addr)
+	void AddReadyCloseSession(session_id_t sid)
 	{
 		SpinLockGuard guard(ready_close_session_list_lock);
-		ready_close_session_list.push_back(session_addr);
+		ready_close_session_list.push_back(sid);
 	}
 
-	void Wait(time_t timeout = 1000);
+	template<typename PROTOCOL>
+	static bool Listen(const char *ip, int port, std::function<void (const PROTOCOL &, session_id_t)> callback);
 
 	template<typename PROTOCOL>
-	static bool Listen(const char *ip, int port, std::function<void (const PROTOCOL &, SessionPtr)> callback);
+	static bool SendProtocol(session_id_t sid, const PROTOCOL &protocol);
 
 	static Neter& GetInstance() { static Neter n; return n; }
 	bool IsInitSuccess() { return epoll_instance_fd != -1; }
 };
 
 template<typename PROTOCOL>
-bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL &, SessionPtr)> callback)
+bool Neter::SendProtocol(session_id_t sid, const PROTOCOL &protocol)
+{
+	try
+	{
+		SessionPtr ptr = Neter::GetInstance().GetSession(sid);
+		if(!ptr)
+		{
+			Log::Error("Neter::SendProtocol, sid=", sid, " ,session not found !!!");
+			return false;
+		}
+		OctetsStream os;
+		os << protocol;
+		bool res = Session::AppendSendData(ptr, os.GetData());
+		TryAddWriteTask(ptr);
+		return res;
+	}
+	catch(...)
+	{
+		Log::Error("Neter::SendProtocol, sid=", sid, " ,serialize failed !!!");
+	}
+
+	return false;
+}
+
+template<typename PROTOCOL>
+bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL &, session_id_t sid)> callback)
 {
 	if(!ip)
 	{
@@ -386,13 +300,58 @@ bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL 
 
 	epoll_event ev;
 	ev.events = EPOLLIN|EPOLLET;
-	SessionPtr ptr(new Session(Session::ACCEPTOR_SESSION, sockfd));
+	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::ACCEPTOR_SESSION, sockfd));
 	ptr->InitCallback<PROTOCOL>(callback);
-	Neter::GetInstance().session_container.insert(std::make_pair((ptrdiff_t)(ptr.get()), ptr));
-	ev.data.ptr = ptr.get();
+	Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
+	ev.data.u64 = ptr->GetSID();
 	Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
 
 	return true;
+}
+
+template<typename CALLBACKPTR>
+void Neter::Session::InitCallback(CALLBACKPTR cb)
+{
+	if(callback_ptr.get())
+	{
+		Log::Error("Neter::Session::InitCallback, forbid reset callback!");
+		return ;
+	}
+
+	callback_ptr = cb;
+}
+
+template<typename PROTOCOL>
+void Neter::Session::InitCallback(std::function<void (const PROTOCOL &, session_id_t)> callback)
+{
+	if(callback_ptr.get())
+	{
+		Log::Error("Neter::Session::InitCallback, forbid reset callback!");
+		return ;
+	}
+	callback_ptr.reset(new Callback<PROTOCOL>(callback));
+}
+
+template<typename PROTOCOL>
+void Neter::Session::Callback<PROTOCOL>::Deserialize(session_id_t sid, Octets &data)
+{
+	OctetsStream os(data);
+	PROTOCOL p;
+	try
+	{
+		for(;;)
+		{
+			os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
+			callback(p, sid);
+			Log::Trace("Neter::Session::Callback, serialize success !!!");
+		}
+	}
+	catch(...)
+	{
+		os >> OctetsStream::REVERT;
+	}
+
+	data = os.GetData();
 }
 
 }
@@ -403,7 +362,10 @@ struct NeterInit
 {
 	NeterInit()
 	{
-		TCORE::Neter::GetInstance();
+		if(TCORE::Neter::GetInstance().IsInitSuccess() == false)
+		{
+			throw "init neter failed !!!";
+		}
 	}
 };
 NeterInit _neter_init_;

@@ -10,14 +10,6 @@ void ThreadPool::Stop()
 	{
 		Log::Trace("ThreadPool::Stop, the number of remaining task is ", q->Size());
 	}
-
-	for(auto &t : threads)
-	{
-		if(pthread_kill(t.GetThreadID(), SIGUSR1))
-		{
-			Log::Trace("ThreadPool::Stop, send signal failed, tid=", std::hex, t.GetThreadID(), std::dec, ", info=", strerror(errno));
-		}
-	}
 }
 
 bool ThreadPool::AddTask(TaskPtr ptr)
@@ -74,8 +66,6 @@ void Thread::notify_task_quit(int)
 
 void* Thread::RunTask(void *task)
 {
-	signal(SIGUSR1, exit_cur_thread);
-	signal(SIGUSR2, notify_task_quit);
 	if(task == nullptr) return nullptr;
 	Task *t = static_cast<Task *>(task);
 	t->Exec();

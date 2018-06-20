@@ -149,6 +149,21 @@ class Neter
 	// session end
 
 private:
+	struct InitSignalHandleTask : public Task
+	{
+		InitSignalHandleTask() : Task(RDWR_TASK) {}
+		void Exec()
+		{
+			sigset_t set;
+			sigemptyset(&set);
+			sigaddset(&set, SIGPIPE);
+			if(pthread_sigmask(SIG_BLOCK, &set, NULL))
+			{
+				Log::Error("InitSignalHandleTask::Exec, block pipe fialed !!!");
+			}
+		}
+	};
+
 	struct SessionWriteTask : public Task
 	{
 		SessionWriteTask(SessionPtr p) : Task(RDWR_TASK),  ps(p) {} 
@@ -168,7 +183,7 @@ private:
 	struct NeterPollTask : public Task
 	{
 		NeterPollTask() : Task(POLL_TASK) {}
-		void Exec() { while(true) { Neter::GetInstance().Wait(); } }
+		void Exec() { while(true) { Neter::GetInstance().Wait(); pthread_testcancel(); } }
 	};
 
 	static void TryAddReadTask(SessionPtr ptr);

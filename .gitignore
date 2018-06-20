@@ -1,7 +1,7 @@
 *.o
 *.log
 log.txt
-website/website
+cupid/cupid
 .git-credentials
 core/base/Makefile
 core/certbot

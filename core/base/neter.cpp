@@ -108,6 +108,12 @@ Neter::Neter()
 		Log::Error("Neter::Neter, create epoll instance failed, info=", strerror(errno));
 		return ;
 	}
+
+	if(!threadpool.AddTask(TaskPtr(new InitSignalHandleTask())))
+	{
+		Log::Error("Neter::Neter, prepare init signal handle failed!!!");
+	}
+
 	if(!threadpool.AddTask(TaskPtr(new NeterPollTask())))
 	{
 		Log::Error("Neter::Neter, add poll task failed!!!");

@@ -88,6 +88,7 @@ class Thread
 private:
 	pthread_t tid;
 	TaskPtr task;
+	bool start_flag;
 	static void* RunTask(void *task);
 	static void  exit_cur_thread(int);
 	static void  notify_task_quit(int);
@@ -96,7 +97,7 @@ public:
 
 	pthread_t GetThreadID() const { return tid; }
 
-	explicit Thread(TaskPtr t) : tid(0x0), task(t) {}
+	explicit Thread(TaskPtr t) : task(t), start_flag(false) {}
 
 	void Run()
 	{
@@ -105,13 +106,17 @@ public:
 		{
 			Log::Error("Thread::Run, failed, info=", strerror(errno));
 		}
+		else
+		{
+			start_flag = true;
+		}
 	}
 
 	~Thread()
 	{
-		if(tid != 0x0)
+		if(start_flag)
 		{
-			pthread_kill(tid, SIGUSR1);
+			pthread_cancel(tid);
 			pthread_join(tid, nullptr);
 		}
 	}

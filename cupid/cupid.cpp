@@ -59,10 +59,10 @@ int main(int argc, char **argv)
 	default_logic_thread_count = cupid_config["default-logic-thread-count"].Num();
 
 	ThreadPool logic_thread_pool(default_logic_thread_count, ThreadPool::PT_XT_TO_XQ,
-				[](task_id_t task_id, size_t thread_size)->size_t
-				{
-					return task_id%thread_size;
-				});
+								[](task_id_t task_id, size_t thread_size)->size_t
+								{
+								return task_id%thread_size;
+								});
 
 	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, [&logic_thread_pool](const HttpRequest &p, session_id_t sid)->void
 								{
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 								});
 	
 	bool connect_res = Neter::Connect<HttpResponse>("119.75.213.61", 80, 
-								[](session_id_t sid)
+								[](session_id_t sid)->void
 								{
 									HttpRequest req;
 									HttpPacketVisitor<HttpRequest> visitor(req);

@@ -5,4 +5,4 @@ website/website
 .git-credentials
 core/base/Makefile
 core/certbot
-website/blog/
+cupid/blog/

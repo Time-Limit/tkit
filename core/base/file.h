@@ -14,7 +14,7 @@ class File
 {
 	enum
 	{
-		MAX_SIZE = 1024*1024*10,
+		MAX_SIZE = 1024*1024*1024*10LL,
 	};
 
 	std::string name;
@@ -23,6 +23,7 @@ class File
 public:
 	const std::string Name() const { return name; }
 	const std::string Data() const { return data; }
+	const size_t Size() const { return data.size(); }
 
 	explicit File(const std::string &name, bool load_flag = true);
 
@@ -52,6 +53,18 @@ public:
 
 	FilePtr GetFilePtr(const std::string &);
 };
+
+namespace
+{
+
+struct FileManagerIniter
+{
+	FileManagerIniter() { FileManager::GetInstance(); }
+};
+
+FileManagerIniter _file_manager_initer_;
+
+}
 
 }
 

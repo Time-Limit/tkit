@@ -245,10 +245,16 @@ void Neter::Session::ExchangerWriteFunc()
 	{
 		{
 			SpinLockGuard guard(send_data_list_lock);
-			for(const auto &p : tmp_send_data_list)
+			auto rb = tmp_send_data_list.rbegin();
+			auto re = tmp_send_data_list.rend();
+			for(; rb != re; ++rb)
 			{
-				send_data_list.push_front(p);
+				send_data_list.push_front(*rb);
 			}
+			//for(const auto &p : tmp_send_data_list)
+			//{
+			//	send_data_list.push_front(p);
+			//}
 		}
 		SetEventFlag(WRITE_READY);
 	}

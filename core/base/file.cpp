@@ -47,6 +47,7 @@ FileManager::FilePtr FileManager::GetFilePtr(const std::string &name)
 
 	if(trie.Find(name, it))
 	{
+		Log::Trace("FileManager::GetFilePtr, cache, name=", name);
 		return *it;
 	}
 

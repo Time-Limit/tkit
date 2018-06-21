@@ -82,7 +82,10 @@ void Neter::Wait(time_t timeout)
 		swap(tmp_ready_close_session_list, ready_close_session_list);
 	}while(0);
 
-	Log::Trace("Neter::Wait, ", tmp_ready_close_session_list.size(), " sessions will close!");
+	if(tmp_ready_close_session_list.size())
+	{
+		Log::Trace("Neter::Wait, ", tmp_ready_close_session_list.size(), " sessions will close!");
+	}
 
 	for(auto addr : tmp_ready_close_session_list)
 	{

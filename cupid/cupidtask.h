@@ -25,15 +25,6 @@ public:
 		HttpPacketVisitor<HttpResponse> res_vis(res);
 		HttpPacketVisitor<HttpRequest>  req_vis(request);
 
-		auto url = req_vis.GetURL();
-		auto pos = url.find('?');
-
-		if(pos != std::string::npos)
-		{
-			url = url.substr(0, pos);
-			req_vis.SetURL(url);
-		}
-
 		FileManager::FilePtr file = FileManager::GetInstance().GetFilePtr(default_base_folder+req_vis.GetURL());
 
 		Log::Trace("HandleHttpRequestTask::Exec, url=", req_vis.GetURL());

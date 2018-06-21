@@ -4,7 +4,7 @@ CC = g++
 core_objs = ../core/base/neter.o ../core/base/log.o ../core/base/octets.o \
 	    ../core/base/threadpool.o ../core/base/md5.o ../core/base/config.o \
 	    ../core/base/file.o ../core/base/protocol.o ../core/inl/enums.o \
-	    ../core/base/session.o
+	    ../core/base/session.o ../core/inl/basetool.o
 
 cupid_objs = cupid.o cupidbase.o
 

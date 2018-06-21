@@ -19,8 +19,6 @@ OctetsStream& HttpResponse::Deserialize(OctetsStream &os)
 
 	typedef unsigned char parse_state_t;
 
-	os >> OctetsStream::START;
-
 	for(parse_state_t state = PARSE_LINE; state < PARSE_DONE; )
 	{
 		switch(state)
@@ -232,8 +230,6 @@ OctetsStream& HttpRequest::Deserialize(OctetsStream &os)
 
 	typedef unsigned char parse_state_t;
 
-	os >> OctetsStream::START;
-
 	for(parse_state_t state = PARSE_LINE; state < PARSE_DONE; )
 	{
 		switch(state)
@@ -373,6 +369,27 @@ OctetsStream& HttpRequest::Deserialize(OctetsStream &os)
 				throw;
 			}
 			break;
+		}
+	}
+
+	std::vector<std::string> result = split_string(url, "?");
+
+	if(result.size() == 2)
+	{
+		url = result[0];
+
+		result = split_string(result[1], "&");
+		for(const auto &arg : result)
+		{
+			std::vector<std::string> kv = split_string(arg, "=");
+			if(kv.size() == 1)
+			{
+				args[kv[0]] = "";
+			}
+			else if(kv.size() == 2)
+			{
+				args[kv[0]] = kv[1];
+			}
 		}
 	}
 

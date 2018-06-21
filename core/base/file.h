@@ -1,12 +1,14 @@
 #ifndef _FILE_H_
 #define _FILE_H_
 
-#include "octets.h"
 #include <fcntl.h>
-#include <set>
 #include <string>
-#include "lock.h"
 #include <memory>
+#include <list>
+
+#include "octets.h"
+#include "lock.h"
+#include "trie.h"
 
 namespace TCORE
 {
@@ -36,17 +38,11 @@ public:
 	typedef std::shared_ptr<File> FilePtr;
 
 private:
-	struct FilePtrCompare
-	{
-		bool operator()(const FilePtr &lhs, const FilePtr &rhs) const
-		{
-			return lhs->Name() < rhs->Name();
-		}
-	};
 
-	typedef std::set<FilePtr, FilePtrCompare> FileSet;
-	Mutex file_set_lock;
-	FileSet file_set;
+	SpinLock file_list_lock;
+	typedef std::list<FilePtr> FileList;
+	FileList file_list;
+	Trie<std::string, FileList::iterator, 256> trie;
 
 public:
 	static FileManager& GetInstance() { static FileManager m; return m; }

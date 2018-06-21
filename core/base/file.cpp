@@ -41,20 +41,21 @@ File::File(const std::string &n, bool load_flag)
 
 FileManager::FilePtr FileManager::GetFilePtr(const std::string &name)
 {
-	MutexGuard guarder(file_set_lock);
+	SpinLockGuard guarder(file_list_lock);
 
-	//FileSet::iterator it = std::find_if(file_set.begin(), file_set.end(), [&name](const FilePtr& rhs)->bool { return rhs->Name() == name; });
-	FileSet::iterator it = file_set.find(FilePtr(new File(name, true)));
-	if(it != file_set.end())
+	FileList::iterator it = file_list.end();
+
+	if(trie.Find(name, it))
 	{
 		return *it;
 	}
-	
+
 	FilePtr fptr(new File(name));
 	
 	if(fptr->IsLoad())
 	{
-		file_set.insert(fptr);
+		file_list.push_front(fptr);
+		trie.Update(name, file_list.begin());
 		return fptr;
 	}
 

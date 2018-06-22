@@ -1,5 +1,6 @@
 *.o
 *.log
+*.swp
 log.txt
 cupid/cupid
 .git-credentials

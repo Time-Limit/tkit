@@ -33,6 +33,11 @@ private:
 			memset(index_array, 0, sizeof(index_array));
 		}
 
+		~Node()
+		{
+			Clear();
+		}
+
 		void Clear()
 		{
 			set_value_flag = false;
@@ -142,6 +147,44 @@ private:
 private:
 	Node* root;
 	HASH hash;
+
+public:
+
+	Trie() : root(nullptr) {}
+
+	~Trie()
+	{
+		if(root)
+		{
+			NodePtrPool tmp;
+			tmp.push_back(root);
+			root = nullptr;
+
+			while(tmp.size())
+			{
+				Node* f = tmp.front();
+				tmp.pop_front();
+				node_ptr_pool.push_back(f);
+
+				for(auto &node : f->index_array)
+				{
+					if(node)
+					{
+						tmp.push_back(node);
+						node = nullptr;
+					}
+				}
+			}
+		}
+
+		for(auto &node : node_ptr_pool)
+		{
+			delete node;
+			node = nullptr;
+		}
+
+		node_ptr_pool.clear();
+	}
 
 public:
 	bool Update(const KEY &key, const VALUE &value)

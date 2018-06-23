@@ -37,17 +37,15 @@ class FileManager
 public:
 	typedef std::shared_ptr<File> FilePtr;
 
-private:
-
-	SpinLock file_list_lock;
-	typedef std::list<FilePtr> FileList;
-	FileList file_list;
-	Trie<std::string, FileList::iterator, 256> trie;
-
 public:
 	static FileManager& GetInstance() { static FileManager m; return m; }
 
 	FilePtr GetFilePtr(const std::string &);
+
+private:
+	SpinLock file_container_lock;
+	typedef Trie<std::string, FilePtr, 256> FileContainer;
+	FileContainer file_container;
 };
 
 namespace

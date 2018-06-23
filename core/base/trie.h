@@ -1,231 +1,255 @@
-#ifndef _TRIE_H_
-#define _TRIE_H_
-
-#include <functional>
-#include <memory>
+#include <utility>
 #include <vector>
-#include <array>
+#include <list>
 
 namespace TCORE
 {
 
-template<typename KEY>
+template<typename T>
 struct DefaultTrieHash
 {
-	size_t operator()(const KEY &key, size_t index) const
+	size_t operator()(const T &v) const
 	{
-		return key[index];
+		return v;
 	}
 };
 
-template<typename KEY, typename VALUE, size_t INDEX_COUNT, typename HASH = DefaultTrieHash<KEY> >
+template<typename KEY, typename VALUE, size_t MAXSIZE, typename HASH = DefaultTrieHash<typename KEY::value_type> >
 class Trie
 {
 private:
+	typedef std::list< std::pair<KEY, VALUE> > LIST;
+
+public:
+	typedef typename LIST::iterator iterator;
+	typedef typename LIST::const_iterator const_iterator;
+
+private:
 	struct Node
 	{
-		Node* index_array[INDEX_COUNT];
+		typedef std::array<Node *, MAXSIZE> NodeArray;
+		NodeArray node_array;
+		iterator it;
 		bool set_value_flag;
-		VALUE value;
 
-		Node() : set_value_flag(false)
-		{
-			memset(index_array, 0, sizeof(index_array));
-		}
-
-		~Node()
-		{
-			Clear();
-		}
-
-		void Clear()
-		{
-			set_value_flag = false;
-			memset(index_array, 0, sizeof(index_array));
-		}
+		Node() : set_value_flag(false) {}
 	};
 
-	typedef std::list<Node*> NodePtrPool;
-	NodePtrPool node_ptr_pool;
+	typedef std::list<Node *> NodeList;
+	NodeList node_list;
 
-	Node* PopNodePtr()
+	bool push_node(Node * ptr)
 	{
-		if(node_ptr_pool.size())
+		if(ptr) return false;
+		try
 		{
-			Node* tmp = node_ptr_pool.front();
-			node_ptr_pool.pop_front();
+			node_list.push_back(ptr);
+			return true;
+		}
+		catch(...)
+		{
+			delete ptr;
+		}
+		return false;
+	}
+
+	Node* pop_node()
+	{
+		if(node_list.size())
+		{
+			Node *tmp = node_list.front();
+			node_list.pop_front();
 			return tmp;
 		}
-		throw "pool is empty";
 		return nullptr;
 	}
 
-	void PushNodePtr(Node* ptr)
-	{
-		ptr->Clear();
-		node_ptr_pool.push_back(ptr);
-	}
-
-	bool Expand(size_t size)
+	bool append_multi_node(size_t size)
 	{
 		try
 		{
 			for(size_t i = 0; i < size; ++i)
 			{
-				PushNodePtr(new Node());
+				if(push_node(new Node()) == false)
+				{
+					return false;
+				}
 			}
-			return true;
 		}
 		catch(...)
 		{
+			return false;
 		}
-		return false;
-	}
-
-	void MatchAndOperate(const std::vector<size_t> &index_vector, size_t index, Node **root, std::function<void (Node&)> operate)
-	{
-		if(*root == nullptr)
-		{
-			*root = PopNodePtr();
-		}
-
-		if(index == index_vector.size())
-		{
-			operate(**root);
-		}
-		else
-		{
-			MatchAndOperate(index_vector, index+1, &((*root)->index_array[index_vector[index]]), operate);
-		}
-
-		if((*root)->set_value_flag == false)
-		{
-			bool recycle_flag = true;
-
-			if(recycle_flag)
-			{
-				for(Node *tmp : (*root)->index_array)
-				{
-					if(tmp)
-					{
-						recycle_flag = false;
-					}
-				}
-			}
-
-			if(recycle_flag)
-			{
-				Node *tmp = *root;
-				*root = nullptr;
-				PushNodePtr(tmp);
-			}
-		}
-	}
-
-	bool ConstructIndexVector(const KEY &key, std::vector<size_t> &index_vector)
-	{
-		if(key.size()+1 >= node_ptr_pool.size()
-			&& false == Expand(key.size()+1 - node_ptr_pool.size()))
-			{
-				return false;
-			}
-
-		index_vector.resize(key.size());
-
-		for(size_t i = 0; i < key.size(); ++i)
-		{
-			index_vector[i] = hash(key, i);
-			if(index_vector[i] >= INDEX_COUNT)
-			{
-				return false;
-			}
-		}
-
 		return true;
 	}
 
 private:
-	Node* root;
+	LIST list;
 	HASH hash;
+	Node *root;
 
 public:
-
 	Trie() : root(nullptr) {}
-
 	~Trie()
 	{
-		if(root)
+		clear();
+		for(auto &p : node_list)
 		{
-			NodePtrPool tmp;
-			tmp.push_back(root);
-			root = nullptr;
+			delete p;
+			p = nullptr;
+		}
+	}
+private:
 
-			while(tmp.size())
+	void WalkAndOperate(const KEY &k, std::function<void(Node&)> operate, bool alloc_when_node_is_null = false)
+	{
+		std::vector<size_t> vec(k.size(), 0);
+		for(size_t i = 0, s = k.size(); i < s; ++i)
+		{
+			vec[i] = hash(k[i]);
+			if(vec[i] >= MAXSIZE)
 			{
-				Node* f = tmp.front();
-				tmp.pop_front();
-				node_ptr_pool.push_back(f);
-
-				for(auto &node : f->index_array)
-				{
-					if(node)
-					{
-						tmp.push_back(node);
-						node = nullptr;
-					}
-				}
+				return ;
 			}
 		}
 
-		for(auto &node : node_ptr_pool)
-		{
-			delete node;
-			node = nullptr;
-		}
+		std::vector<Node **> path(k.size()+1, nullptr);
 
-		node_ptr_pool.clear();
+		Node **now = &root;
+		for(size_t i = 0, s = k.size(); i < s; ++i)
+		{
+			if(*now == nullptr)
+			{
+				if(false == alloc_when_node_is_null)
+				{
+					return ;
+				}
+				*now = pop_node();
+			}
+			path[i] = now;
+			now = &((*path[i])->node_array[vec[i]]);
+		}
+		if(*now == nullptr)
+		{
+			if(false == alloc_when_node_is_null)
+			{
+				return ;
+			}
+			*now = pop_node();
+		}
+		path[k.size()] = now;
+		operate(**now);
+
+		for(int i = path.size()-1; i >= 0; --i)
+		{
+			Node **node = path[i];
+
+			if((*node)->set_value_flag)
+			{
+				return ;
+			}
+
+			for(Node *ptr : (*node)->node_array)
+			{
+				if(ptr)
+				{
+					return ;
+				}
+			}
+
+			push_node(*node);
+			*node = nullptr;
+		}
 	}
 
 public:
-	bool Update(const KEY &key, const VALUE &value)
+
+	std::pair<iterator, bool> insert(const KEY &k, const VALUE &v)
 	{
-		std::vector<size_t> index_vector;
-		if(ConstructIndexVector(key, index_vector) == false)
+		if(node_list.size() < k.size())
 		{
-			return false;
+			if(!append_multi_node(k.size() - node_list.size()))
+			{
+				return std::make_pair<iterator, bool>(list.end(), false);
+			}
 		}
 
-		MatchAndOperate(index_vector, 0, &root, [&value](Node &node)->void { node.set_value_flag = true; node.value = value; });
+		std::pair<iterator, bool> res;
 
-		return true;
+		WalkAndOperate(k, [&k, &v, &res, this](Node &node)->void
+					{
+						if(node.set_value_flag)
+						{
+							res.second = false;
+							res.first = list.end();
+							return ;
+						}
+						try
+						{
+							list.push_front(std::make_pair(k, v));
+							res.second = true;
+							node.it = list.begin();
+							node.set_value_flag = true;
+						}
+						catch(...)
+						{
+							res.second = false;
+							res.first = list.end();
+						}
+					}
+				, true);
+
+		return res;
 	}
 
-	bool Find(const KEY &key, VALUE &value)
+	iterator erase(const KEY &k)
 	{
-		std::vector<size_t> index_vector;
-		if(ConstructIndexVector(key, index_vector) == false)
-		{
-			return false;
-		}
-
-		bool find_flag = false;
-		MatchAndOperate(index_vector, 0, &root, [&find_flag, &value](Node &node)->void { if(node.set_value_flag) { find_flag = true; value = node.value; } });
-		return find_flag;
+		iterator res;
+		WalkAndOperate(k, [&res, this](Node &node)->void
+					{
+						if(node.set_value_flag)
+						{
+							node.set_value_flag = false;
+							res = list.erase(node.it);
+							node.it = list.end();
+						}
+						else
+						{
+							res = list.end();
+						}
+					});
+		return res;
 	}
 
-	bool Delete(const KEY &key)
+	iterator find(const KEY &k)
 	{
-		std::vector<size_t> index_vector;
-		if(ConstructIndexVector(key, index_vector) == false)
-		{
-			return false;
-		}
-		bool delete_flag = false;
-		MatchAndOperate(index_vector, 0, &root, [&delete_flag](Node &node)-> void { if(node.set_value_flag) { node.set_value_flag = false; delete_flag = true;} });
-		return delete_flag;
+		iterator res;
+		WalkAndOperate(k, [&res, this](Node &node)->void
+					{
+						if(node.set_value_flag)
+						{
+							res = node.it;
+						}
+						else
+						{
+							res = list.end();
+						}
+					});
+		return res;
 	}
+
+	void clear()
+	{
+		list.clear();
+		if(root == nullptr) return; 
+	}
+
+	iterator begin() { return list.begin(); }
+	iterator end()	 { return list.end(); }
+	iterator begin() const { return list.begin(); }
+	iterator end() const { return list.begin(); }
+	iterator cbegin() const { return list.begin(); }
+	iterator cend() const { return list.begin(); }
 };
 
 }
-
-#endif

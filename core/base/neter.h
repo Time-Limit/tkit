@@ -416,12 +416,12 @@ void Neter::Session::Callback<PROTOCOL>::Deserialize(session_id_t sid, Octets &d
 		{
 			os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
 			callback(p, sid);
-			Log::Trace("Neter::Session::Callback, deserialize success !!!");
+			Log::Debug("Neter::Session::Callback, deserialize success !!!");
 		}
 	}
 	catch(...)
 	{
-		Log::Trace("Neter::Session::Callback, deserialize throw exception !!!");
+		Log::Debug("Neter::Session::Callback, deserialize throw exception !!!");
 		os >> OctetsStream::REVERT;
 	}
 

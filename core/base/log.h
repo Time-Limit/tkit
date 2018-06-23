@@ -75,6 +75,10 @@ private:
 public:
 	static Log& GetInstance() { static Log instance;  return instance; }
 
+	void SetDebugLevel() { level = LL_DEBUG; }
+	void SetTraceLevel() { level = LL_TRACE; }
+	void SetErrorLevel() { level = LL_ERROR; }
+
 	template<typename ...Args>
 	static void Debug(const Args &...args)
 	{

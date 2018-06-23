@@ -52,6 +52,8 @@ int main(int argc, char **argv)
 
 	const Config &cupid_config = *ConfigManager::GetInstance().GetConfig("cupid");
 
+	Log::GetInstance().SetTraceLevel();
+
 	default_https_port = cupid_config["https-port"].Num();
 	default_http_port = cupid_config["http-port"].Num();
 	default_base_folder = cupid_config["base-folder"].Str();

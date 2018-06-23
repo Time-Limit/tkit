@@ -109,7 +109,7 @@ void Neter::Session::AcceptorReadFunc()
 
 		if(new_fd > 0)
 		{
-			Log::Trace("client's ip: ", inet_ntoa(accept_addr.sin_addr), " , port: ", ntohs(accept_addr.sin_port));
+			Log::Trace("client's ip: ", inet_ntoa(accept_addr.sin_addr), ", port: ", ntohs(accept_addr.sin_port));
 			fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL) | O_NONBLOCK);
 			// accept success
 			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, new_fd));

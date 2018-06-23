@@ -145,6 +145,16 @@ class Neter
 		void ConnectorWriteFunc();
 
 		//HANDLE READ/WRITE PART END
+		
+	private:
+		std::string ip;
+		int port;
+
+		void SetIP(const std::string &_ip) { ip = _ip; }
+		void SetPort(int _port) { port = _port; }
+	public:
+		const std::string& GetIP() const { return ip; }
+		int GetPort() const { return port; }
 	};
 	// session end
 
@@ -302,6 +312,8 @@ bool Neter::Connect(const char *ip, int port, ConnectCallback connect_callback, 
 	fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
 
 	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, sock));
+	ptr->SetIP(ip);
+	ptr->SetPort(port);
 	ptr->InitCallback(callback);
 	epoll_event ev;
 	ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
@@ -360,6 +372,8 @@ bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL 
 	epoll_event ev;
 	ev.events = EPOLLIN|EPOLLET;
 	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::ACCEPTOR_SESSION, sockfd));
+	ptr->SetIP(ip);
+	ptr->SetPort(port);
 	ptr->InitCallback<PROTOCOL>(callback);
 	Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
 	ev.data.u64 = ptr->GetSID();

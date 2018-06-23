@@ -266,6 +266,8 @@ public:
 	iterator end() const { return list.begin(); }
 	iterator cbegin() const { return list.begin(); }
 	iterator cend() const { return list.begin(); }
+
+	size_t size() const { return list.size(); }
 };
 
 }

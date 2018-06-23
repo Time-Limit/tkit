@@ -7,6 +7,7 @@
 #include <list>
 
 #include "octets.h"
+#include "cache.h"
 #include "lock.h"
 #include "trie.h"
 
@@ -43,9 +44,9 @@ public:
 	FilePtr GetFilePtr(const std::string &);
 
 private:
-	SpinLock file_container_lock;
-	typedef Trie<std::string, FilePtr, 256> FileContainer;
-	FileContainer file_container;
+	SpinLock file_cache_lock;
+	typedef Cache<std::string, FilePtr, LRU<std::string>, 2, Trie<std::string, FilePtr, 256> >  FileCache;
+	FileCache file_cache;
 };
 
 namespace

@@ -42,25 +42,24 @@ File::File(const std::string &n, bool load_flag)
 FileManager::FilePtr FileManager::GetFilePtr(const std::string &name)
 {
 	{
-		SpinLockGuard guard(file_container_lock);
-		FileContainer::iterator it = file_container.find(name);
-		if(it != file_container.end())
+		SpinLockGuard guard(file_cache_lock);
+		FilePtr fptr;
+		if(file_cache.find(name, fptr))
 		{
 			Log::Trace("FileManager::GetFilePtr, cache, name=", name);
-			return it->second;
+			return fptr;
 		}
 	}
+
 	FilePtr fptr(new File(name));
 	
 	if(fptr->IsLoad())
 	{
 		{
-			SpinLockGuard guard(file_container_lock);
-			FileContainer::iterator it = file_container.find(name);
-			if(it == file_container.end())
+			SpinLockGuard guard(file_cache_lock);
+			if(file_cache.insert(name, fptr))
 			{
-				std::pair<FileContainer::iterator, bool> res = file_container.insert(name, fptr);
-				Log::Trace("FileManager::GetFilePtr, insert, name=", name, " , res=", res.second);
+				Log::Trace("FileManager::GetFilePtr, insert, name=", name);
 			}
 		}
 		return fptr;

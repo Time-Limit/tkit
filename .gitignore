@@ -3,6 +3,7 @@
 *.swp
 log.txt
 cupid/cupid
+test
 .git-credentials
 core/base/Makefile
 core/certbot

@@ -56,8 +56,10 @@ class Neter
 		session_id_t sid;
 		int fd;
 		SESSION_TYPE type;
+		bool is_need_deserialize;
 
-		bool IsExchangeSession() const { return type == EXCHANGE_SESSION || type == SECURE_EXCHANGE_SESSION; }
+		void SetNeedDeserialize(bool flag) { is_need_deserialize = flag; }
+		bool IsNeedDeserialize() const { return is_need_deserialize; }
 		bool IsInitSuccess() const { return type != INVALID_SESSION; }
 
 		SESSION_TYPE GetType() const { return type; }
@@ -67,6 +69,13 @@ class Neter
 		// BASE DATA/METHOD END
 
 		//CALLBACK PART BEGIN
+		typedef std::function<void (session_id_t sid)> ConnectCallback;
+		ConnectCallback connect_callback;
+		void SetConnectCallback(ConnectCallback callback) { connect_callback = callback; }
+
+		typedef std::function<void (session_id_t old_sid, const std::string &ip, int port)> DisconnectCallback;
+		DisconnectCallback disconnect_callback;
+		void SetDisconnectCallback(DisconnectCallback dcb) { disconnect_callback = dcb; }
 		
 		struct CallbackBase
 		{
@@ -250,9 +259,8 @@ public:
 	template<typename PROTOCOL>
 	static bool Listen(const char *ip, int port, std::function<void (const PROTOCOL &, session_id_t)> callback);
 
-	typedef std::function<void (session_id_t sid)> ConnectCallback;
 	template<typename PROTOCOL>
-	static bool Connect(const char *ip, int port, ConnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback);
+	static bool Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback);
 
 	template<typename PROTOCOL>
 	static bool SendProtocol(session_id_t sid, const PROTOCOL &protocol);
@@ -275,7 +283,6 @@ bool Neter::SendProtocol(session_id_t sid, const PROTOCOL &protocol)
 		OctetsStream os;
 		os << protocol;
 		bool res = Session::AppendSendData(ptr, os.GetData());
-		TryAddWriteTask(ptr);
 		return res;
 	}
 	catch(...)
@@ -287,7 +294,7 @@ bool Neter::SendProtocol(session_id_t sid, const PROTOCOL &protocol)
 }
 
 template<typename PROTOCOL>
-bool Neter::Connect(const char *ip, int port, ConnectCallback connect_callback, std::function<void (const PROTOCOL &, session_id_t)> callback)
+bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback)
 {
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0)
@@ -300,7 +307,7 @@ bool Neter::Connect(const char *ip, int port, ConnectCallback connect_callback, 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = inet_addr(ip);
+	addr.sin_addr.s_addr = inet_addr(ip.c_str());
 
 	fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
 
@@ -308,28 +315,45 @@ bool Neter::Connect(const char *ip, int port, ConnectCallback connect_callback, 
 	{
 		if(errno == EINPROGRESS)
 		{
-			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION));
+			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
 			ptr->SetIP(ip);
 			ptr->SetPort(port);
 			ptr->InitCallback(callback);
-			return ;
+			ptr->SetConnectCallback(ccb);
+			ptr->SetDisconnectCallback(dcb);
+			ptr->SetEventFlag(Session::WRITE_READY);
+			epoll_event ev;
+			ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
+			ev.data.u64 = ptr->GetSID();
+
+			Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
+			Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
+			return true;
 		}
 		Log::Error("Neter::Connect, ip=", ip, " ,port=", port, ", connect failed, info=", strerror(errno));
 		close(sock);
 		return false;
 	}
 
-	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, sock));
+	Log::Trace("Neter::Connect, connect success, ip=", ip, ", port=", port);
+
+	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
 	ptr->SetIP(ip);
 	ptr->SetPort(port);
 	ptr->InitCallback(callback);
+	ptr->SetConnectCallback(ccb);
+	ptr->SetDisconnectCallback(dcb);
+	ptr->SetNeedDeserialize(true);
+	ptr->write_func_ptr = &Session::ExchangerWriteFunc;
+	ptr->read_func_ptr = &Session::ExchangerReadFunc;
+
 	epoll_event ev;
 	ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
 	ev.data.u64 = ptr->GetSID();
 
 	Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
 	Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
-	connect_callback(ptr->GetSID());
+	ccb(ptr->GetSID());
 	return true;
 }
 

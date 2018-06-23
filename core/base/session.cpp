@@ -6,6 +6,7 @@ Neter::Session::Session(session_id_t s, SESSION_TYPE t, int f)
 : sid(s)
 , fd(f)
 , type(t)
+, is_need_deserialize(false)
 , event_flag(0)
 , cursor_of_first_send_data(0)
 , read_func_ptr(&Session::DefaultReadFunc)
@@ -26,6 +27,7 @@ Neter::Session::Session(session_id_t s, SESSION_TYPE t, int f)
 		{
 			read_func_ptr = &Session::ExchangerReadFunc;
 			write_func_ptr = &Session::ExchangerWriteFunc;
+			SetNeedDeserialize(true);
 		}break;
 		case SECURE_EXCHANGE_SESSION:
 		{
@@ -59,6 +61,10 @@ void Neter::Session::Close()
 {
 	if(TestAndModifyEventFlag(CLOSE_READY, EMPTY_EVENT_FLAG, CLOSE_READY, EMPTY_EVENT_FLAG))
 	{
+		if(disconnect_callback)
+		{
+			disconnect_callback(GetSID(), GetIP(), GetPort());
+		}
 		Neter::GetInstance().AddReadyCloseSession(GetSID());
 	}
 }
@@ -95,6 +101,33 @@ bool Neter::Session::TestAndModifyEventFlag(event_flag_t test, event_flag_t exce
 
 void Neter::Session::ConnectorWriteFunc()
 {
+	int val = 0;
+	socklen_t len = sizeof(int);
+	int ret = getsockopt(GetFD(), SOL_SOCKET, SO_ERROR, &val, &len);
+
+	if(ret != 0 || val != 0 || len != sizeof(int))
+	{
+		Log::Error("Neter::Session::ConenctorWriteFunc, ip=", GetIP()
+				, ", port=", GetPort()
+				, ", ret=", ret
+				, ", val=", val
+				, ", len=", len
+				, ", info=", strerror(errno)
+				);
+		Close();
+		return ;
+	}
+
+	write_func_ptr = &Session::ExchangerWriteFunc;
+	read_func_ptr = &Session::ExchangerReadFunc;
+
+	Log::Trace("Neter::Session::ConnectorWriteFunc, connect success, ip=", GetIP()
+				, ", port=", GetPort());
+
+	ClrEventFlag(Session::WRITE_READY);
+	SetNeedDeserialize(true);
+
+	connect_callback(GetSID());
 }
 
 void Neter::Session::AcceptorReadFunc()
@@ -200,7 +233,7 @@ void Neter::Session::Read(SessionPtr ptr)
 
 	(ptr.get()->*(ptr->read_func_ptr))();
 	
-	if(ptr->IsExchangeSession())
+	if(ptr->IsNeedDeserialize())
 	{
 		ptr->callback_ptr->Deserialize(ptr->GetSID(), ptr->read_data);
 	}

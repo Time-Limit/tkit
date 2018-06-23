@@ -32,7 +32,7 @@ private:
 		iterator it;
 		bool set_value_flag;
 
-		Node() : set_value_flag(false) {}
+		Node() :set_value_flag(false) { node_array.fill(nullptr); }
 	};
 
 	typedef std::list<Node *> NodeList;
@@ -40,7 +40,7 @@ private:
 
 	bool push_node(Node * ptr)
 	{
-		if(ptr) return false;
+		if(nullptr == ptr) return false;
 		try
 		{
 			node_list.push_back(ptr);
@@ -162,13 +162,29 @@ private:
 		}
 	}
 
+	void clear(Node* &root)
+	{
+		if(nullptr == root)
+		{
+			return ;
+		}
+
+		for(auto &p : root->node_array)
+		{
+			clear(p);
+		}
+
+		delete root;
+		root = nullptr;
+	}
+
 public:
 
 	std::pair<iterator, bool> insert(const KEY &k, const VALUE &v)
 	{
 		if(node_list.size() < k.size())
 		{
-			if(!append_multi_node(k.size() - node_list.size()))
+			if(!append_multi_node(1 + k.size() - node_list.size()))
 			{
 				return std::make_pair<iterator, bool>(list.end(), false);
 			}
@@ -204,7 +220,7 @@ public:
 
 	iterator erase(const KEY &k)
 	{
-		iterator res;
+		iterator res = list.end();
 		WalkAndOperate(k, [&res, this](Node &node)->void
 					{
 						if(node.set_value_flag)
@@ -223,7 +239,7 @@ public:
 
 	iterator find(const KEY &k)
 	{
-		iterator res;
+		iterator res = list.end();
 		WalkAndOperate(k, [&res, this](Node &node)->void
 					{
 						if(node.set_value_flag)
@@ -241,7 +257,7 @@ public:
 	void clear()
 	{
 		list.clear();
-		if(root == nullptr) return; 
+		clear(root);
 	}
 
 	iterator begin() { return list.begin(); }

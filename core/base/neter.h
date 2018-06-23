@@ -302,14 +302,22 @@ bool Neter::Connect(const char *ip, int port, ConnectCallback connect_callback, 
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = inet_addr(ip);
 
+	fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
+
 	if(connect(sock, (sockaddr*)&addr, sizeof(addr)) < 0)
 	{
+		if(errno == EINPROGRESS)
+		{
+			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION));
+			ptr->SetIP(ip);
+			ptr->SetPort(port);
+			ptr->InitCallback(callback);
+			return ;
+		}
 		Log::Error("Neter::Connect, ip=", ip, " ,port=", port, ", connect failed, info=", strerror(errno));
 		close(sock);
 		return false;
 	}
-
-	fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
 
 	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, sock));
 	ptr->SetIP(ip);

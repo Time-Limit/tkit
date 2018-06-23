@@ -53,6 +53,7 @@ public:
 		{
 			typename KEY_LIST::reverse_iterator rit = key_list.rbegin();
 			swap(key, *rit);
+			iterator_map.erase(key);
 			key_list.pop_back();
 			return true;
 		}

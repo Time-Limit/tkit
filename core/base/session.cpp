@@ -121,8 +121,6 @@ void Neter::Session::AcceptorReadFunc()
 		}
 		else
 		{
-			Log::Error("Neter::Session::AcceptorReadFunc, accept failed, info=", strerror(errno));
-
 			if(errno == EAGAIN)
 			{
 				return ;
@@ -133,6 +131,8 @@ void Neter::Session::AcceptorReadFunc()
 			}
 			else
 			{
+				Log::Error("Neter::Session::AcceptorReadFunc, accept failed, info=", strerror(errno));
+
 				Close();
 				return ;
 			}
@@ -150,7 +150,7 @@ void Neter::Session::ExchangerReadFunc()
 	for(;;)
 	{
 		percnt = read(fd, read_buff, READ_BUFF_SIZE);
-		Log::Error("Neter::Session::ExchangerReadFunc, cnt=", percnt);
+		Log::Debug("Neter::Session::ExchangerReadFunc, cnt=", percnt);
 		if(percnt > 0)
 		{
 			allcnt += percnt;
@@ -158,8 +158,6 @@ void Neter::Session::ExchangerReadFunc()
 		}
 		else
 		{
-			Log::Error("Neter::Session::ExchangerReadFunc, read failed, info=", strerror(errno));
-
 			if(errno == EINTR)
 			{
 			}
@@ -169,6 +167,7 @@ void Neter::Session::ExchangerReadFunc()
 			}
 			else
 			{
+				Log::Error("Neter::Session::ExchangerReadFunc, read failed, info=", strerror(errno));
 				Close();
 				return ;
 			}
@@ -225,7 +224,6 @@ void Neter::Session::ExchangerWriteFunc()
 		}
 		else
 		{
-			Log::Error("Neter::Session::ExchangerWriteFunc, info=", strerror(errno));
 			if(errno == EINTR)
 			{
 			}
@@ -235,6 +233,7 @@ void Neter::Session::ExchangerWriteFunc()
 			}
 			else
 			{
+				Log::Error("Neter::Session::ExchangerWriteFunc, info=", strerror(errno));
 				Close();
 				return ;
 			}

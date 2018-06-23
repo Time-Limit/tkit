@@ -10,6 +10,7 @@ Neter::Session::Session(session_id_t s, SESSION_TYPE t, int f)
 , cursor_of_first_send_data(0)
 , read_func_ptr(&Session::DefaultReadFunc)
 , write_func_ptr(&Session::DefaultWriteFunc)
+, port(0)
 {
 	switch(type)
 	{
@@ -108,9 +109,13 @@ void Neter::Session::AcceptorReadFunc()
 
 		if(new_fd > 0)
 		{
+			Log::Trace("client's ip: ", inet_ntoa(accept_addr.sin_addr), " , port: ", ntohs(accept_addr.sin_port));
 			fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL) | O_NONBLOCK);
 			// accept success
 			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, new_fd));
+			ptr->SetIP(GetIP());
+			ptr->SetPort(GetPort());
+
 			ptr->InitCallback(callback_ptr);
 			epoll_event ev;
 			ev.events = EPOLLIN|EPOLLOUT|EPOLLET;

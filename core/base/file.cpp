@@ -46,7 +46,7 @@ FileManager::FilePtr FileManager::GetFilePtr(const std::string &name)
 		FilePtr fptr;
 		if(file_cache.find(name, fptr))
 		{
-			Log::Trace("FileManager::GetFilePtr, cache, name=", name);
+			Log::Debug("FileManager::GetFilePtr, cache, name=", name);
 			return fptr;
 		}
 	}
@@ -59,7 +59,7 @@ FileManager::FilePtr FileManager::GetFilePtr(const std::string &name)
 			SpinLockGuard guard(file_cache_lock);
 			if(file_cache.insert(name, fptr))
 			{
-				Log::Trace("FileManager::GetFilePtr, insert, name=", name);
+				Log::Debug("FileManager::GetFilePtr, insert, name=", name);
 			}
 		}
 		return fptr;

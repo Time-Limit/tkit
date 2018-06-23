@@ -45,7 +45,7 @@ public:
 
 private:
 	SpinLock file_cache_lock;
-	typedef Cache<std::string, FilePtr, LRU<std::string>, 2, Trie<std::string, FilePtr, 256> >  FileCache;
+	typedef Cache<std::string, FilePtr, LRU<std::string>, 1024, Trie<std::string, FilePtr, 256> >  FileCache;
 	FileCache file_cache;
 };
 

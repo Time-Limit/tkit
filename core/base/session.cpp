@@ -134,7 +134,7 @@ void Neter::Session::AcceptorReadFunc()
 {
 	int new_fd = -1;
 	struct sockaddr_in accept_addr;
-	int server_addr_len;
+	socklen_t server_addr_len = sizeof(accept_addr);
 
 	for(;;)
 	{
@@ -142,7 +142,10 @@ void Neter::Session::AcceptorReadFunc()
 
 		if(new_fd > 0)
 		{
-			Log::Trace("client's ip: ", inet_ntoa(accept_addr.sin_addr), ", port: ", ntohs(accept_addr.sin_port));
+			server_addr_len = sizeof(accept_addr);
+			getpeername(new_fd, (struct sockaddr *)&accept_addr, &server_addr_len);
+			char ip_buff[16];
+			Log::Trace("client's ip: ", inet_ntop(AF_INET, &accept_addr.sin_addr, ip_buff, sizeof(ip_buff)), ", port: ", ntohs(accept_addr.sin_port));
 			fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL) | O_NONBLOCK);
 			// accept success
 			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, new_fd));

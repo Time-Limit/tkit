@@ -87,21 +87,21 @@ int main(int argc, char **argv)
 									Neter::SendProtocol(sid, req);
 								}; 
 
-	std::function<void(const HttpResponse &p, session_id_t sid)> deserialize = [](const HttpResponse &p, session_id_t sid)->void
-								{
-									std::cout << "receive response !!!" << std::endl;
-								};
-
-	std::function<void(session_id_t, const std::string&, int port)> disconnect_callback = [&connect_callback, &disconnect_callback, &deserialize](session_id_t old_sid, const std::string &ip, int port)->void
-								{
-									bool res = Neter::Connect<HttpResponse>(ip, port, connect_callback, disconnect_callback, deserialize);
-									std::cout << "::main::disconnect_callback, res=" << res << std::endl;
-								};
-
-	
-	bool connect_res = Neter::Connect<HttpResponse>("119.75.213.61", 80, connect_callback, disconnect_callback, deserialize);
-
-	std::cout << "main-function, result of Neter::Connect is " << connect_res << std::endl;
+	//std::function<void(const HttpResponse &p, session_id_t sid)> deserialize = [](const HttpResponse &p, session_id_t sid)->void
+	//							{
+	//								std::cout << "receive response !!!" << std::endl;
+	//							};
+	//
+	//std::function<void(session_id_t, const std::string&, int port)> disconnect_callback = [&connect_callback, &disconnect_callback, &deserialize](session_id_t old_sid, const std::string &ip, int port)->void
+	//							{
+	//								bool res = Neter::Connect<HttpResponse>(ip, port, connect_callback, disconnect_callback, deserialize);
+	//								std::cout << "::main::disconnect_callback, res=" << res << std::endl;
+	//							};
+	//
+	//
+	//bool connect_res = Neter::Connect<HttpResponse>("119.75.213.61", 80, connect_callback, disconnect_callback, deserialize);
+	//
+	//std::cout << "main-function, result of Neter::Connect is " << connect_res << std::endl;
 
 	WaitSignal::GetInstance().Wait();
 

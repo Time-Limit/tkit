@@ -142,16 +142,19 @@ void Neter::Session::AcceptorReadFunc()
 
 		if(new_fd > 0)
 		{
+			fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL) | O_NONBLOCK);
+
+			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, new_fd));
 			server_addr_len = sizeof(accept_addr);
 			getpeername(new_fd, (struct sockaddr *)&accept_addr, &server_addr_len);
-			Log::Trace("client's ip: ", inet_ntop(AF_INET, &accept_addr.sin_addr, nullptr, 0), ", port: ", ntohs(accept_addr.sin_port));
-			fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL) | O_NONBLOCK);
-			// accept success
-			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, new_fd));
-			ptr->SetIP(ip_buff, sizeof(ip_buff));
+			char ip_buff[16] = "0.0.0.0";
+			inet_ntop(AF_INET, &accept_addr.sin_addr, ip_buff, sizeof(ip_buff));
+			ip_buff[15] = 0;
+			ptr->SetIP(ip_buff);
 			ptr->SetPort(ntohs(accept_addr.sin_port));
-
 			ptr->InitCallback(callback_ptr);
+
+			Log::Trace("Neter::Session::AcceptorReadFunc, client's ip: ", ptr->GetIP(), ", port: ", ptr->GetPort());
 			epoll_event ev;
 			ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
 			ev.data.u64 = ptr->GetSID();

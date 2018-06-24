@@ -144,13 +144,12 @@ void Neter::Session::AcceptorReadFunc()
 		{
 			server_addr_len = sizeof(accept_addr);
 			getpeername(new_fd, (struct sockaddr *)&accept_addr, &server_addr_len);
-			char ip_buff[16];
-			Log::Trace("client's ip: ", inet_ntop(AF_INET, &accept_addr.sin_addr, ip_buff, sizeof(ip_buff)), ", port: ", ntohs(accept_addr.sin_port));
+			Log::Trace("client's ip: ", inet_ntop(AF_INET, &accept_addr.sin_addr, nullptr, 0), ", port: ", ntohs(accept_addr.sin_port));
 			fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL) | O_NONBLOCK);
 			// accept success
 			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, new_fd));
-			ptr->SetIP(GetIP());
-			ptr->SetPort(GetPort());
+			ptr->SetIP(ip_buff, sizeof(ip_buff));
+			ptr->SetPort(ntohs(accept_addr.sin_port));
 
 			ptr->InitCallback(callback_ptr);
 			epoll_event ev;

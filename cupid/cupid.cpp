@@ -73,20 +73,21 @@ int main(int argc, char **argv)
 
 	std::cout << "main-function, result of Neter::Listen is " << res << std::endl;
 
-	std::function<void(session_id_t sid)> connect_callback = [](session_id_t sid)->void
-								{
-									HttpRequest req;
-									HttpPacketVisitor<HttpRequest> visitor(req);
-									visitor.SetURL("/");
-									visitor.SetVersion("HTTP/1.1");
-									visitor.SetMethod("GET");
-									visitor.SetHeader("User-Agent", "curl/7.29.0");
-									visitor.SetHeader("Accept", "*/*");
-									visitor.SetHeader("Host", "119.75.213.61");
-	
-									Neter::SendProtocol(sid, req);
-								}; 
-
+	//std::function<void(session_id_t sid)> connect_callback = [](session_id_t sid)->void
+	//							{
+	//								HttpRequest req;
+	//								HttpPacketVisitor<HttpRequest> visitor(req);
+	//								visitor.SetURL("/");
+	//								visitor.SetVersion("HTTP/1.1");
+	//								visitor.SetMethod("GET");
+	//								visitor.SetHeader("User-Agent", "curl/7.29.0");
+	//								visitor.SetHeader("Accept", "*/*");
+	//								visitor.SetHeader("Host", "119.75.213.61");
+	//								visitor.SetHeader("Connection", "keep-alive");
+	//
+	//								Neter::SendProtocol(sid, req);
+	//							}; 
+	//
 	//std::function<void(const HttpResponse &p, session_id_t sid)> deserialize = [](const HttpResponse &p, session_id_t sid)->void
 	//							{
 	//								std::cout << "receive response !!!" << std::endl;

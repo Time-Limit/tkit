@@ -165,6 +165,7 @@ void Neter::Session::AcceptorReadFunc()
 				SSLPtr ssl_ptr(SSL_new(ssl_ctx_ptr.get()), SSL_free);
 				SSL_set_accept_state(ssl_ptr.get());
 				SSL_set_fd(ssl_ptr.get(), fd);
+				ptr->SetEventFlag(WRITE_READY);
 				ptr->SetSSLPtr(ssl_ptr);
 			}
 
@@ -266,6 +267,7 @@ void Neter::Session::SecureExchangerReadFunc()
 			}
 			else if(error == SSL_ERROR_WANT_WRITE)
 			{
+				ptr->SetEventFlag(WRITE_READY);
 				break;
 			}
 			else if(error == SSL_ERROR_NONE)

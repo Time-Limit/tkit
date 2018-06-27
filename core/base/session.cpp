@@ -287,12 +287,6 @@ void Neter::Session::SecureExchangerReadFunc()
 		}
 	}
 
-	if(allcnt == 0)
-	{
-		Close();
-		return ;
-	}
-
 	return ;
 }
 

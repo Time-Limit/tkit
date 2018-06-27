@@ -262,6 +262,9 @@ void Neter::Session::SecureExchangerReadFunc()
 		else
 		{
 			int error = SSL_get_error(ssl_ptr.get(), res);
+			Log::Debug("Neter::Session::SecureExchangeReadFunc",
+					", res=", res,
+					", error=" , error);
 			if(error == SSL_ERROR_WANT_READ)
 			{
 				break;
@@ -316,6 +319,9 @@ void Neter::Session::SecureExchangerWriteFunc()
 		else
 		{
 			int error = SSL_get_error(ssl_ptr.get(), res);
+			Log::Debug("Neter::Session::SecureExchangeReadFunc",
+					", res=", res,
+					", error=" , error);
 			if(error == SSL_ERROR_WANT_READ)
 			{
 				break;

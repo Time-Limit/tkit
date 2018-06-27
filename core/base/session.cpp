@@ -33,6 +33,7 @@ Neter::Session::Session(session_id_t s, SESSION_TYPE t, int f)
 		case SECURE_EXCHANGE_SESSION:
 		{
 			read_func_ptr = &Session::SecureExchangerReadFunc;
+			write_func_ptr = &Session::SecureExchangerWriteFunc;
 		}break;
 		default:
 		{

@@ -70,6 +70,13 @@ int main(int argc, char **argv)
 								{
 									logic_thread_pool.AddTask(TaskPtr(new HandleHttpRequestTask(sid, sid, p)));
 								});
+	std::cout << "main-function, result of Neter::Listen is " << res << std::endl;
+
+	res = Neter::Listen<HttpRequest>("0.0.0.0", default_https_port, nullptr, nullptr, [&logic_thread_pool](const HttpRequest &p, session_id_t sid)->void
+								{
+									logic_thread_pool.AddTask(TaskPtr(new HandleHttpRequestTask(sid, sid, p)));
+								},
+								Neter::SecureConfig(Neter::SecureConfig::ENABLE, cupid_config["cert_path"].Str(), cupid_config["pkey_path"].Str()));
 
 	std::cout << "main-function, result of Neter::Listen is " << res << std::endl;
 

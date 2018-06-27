@@ -267,7 +267,7 @@ void Neter::Session::SecureExchangerReadFunc()
 			}
 			else if(error == SSL_ERROR_WANT_WRITE)
 			{
-				ptr->SetEventFlag(WRITE_READY);
+				SetEventFlag(WRITE_READY);
 				break;
 			}
 			else if(error == SSL_ERROR_NONE)

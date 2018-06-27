@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 								return task_id%thread_size;
 								});
 
-	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, [&logic_thread_pool](const HttpRequest &p, session_id_t sid)->void
+	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, nullptr, nullptr, [&logic_thread_pool](const HttpRequest &p, session_id_t sid)->void
 								{
 									logic_thread_pool.AddTask(TaskPtr(new HandleHttpRequestTask(sid, sid, p)));
 								});

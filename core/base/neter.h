@@ -1,6 +1,7 @@
 #ifndef _NETER_H_
 #define _NETER_H_
 
+#include <openssl/ssl.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/epoll.h>
@@ -50,6 +51,7 @@ class Neter
 		Session(session_id_t sid, SESSION_TYPE type, int fd);
 	public:
 		~Session();
+
 	private:
 		void Close();
 
@@ -146,6 +148,7 @@ class Neter
 		void AcceptorReadFunc();
 		void ExchangerReadFunc();
 		void SecureExchangerReadFunc();
+		void SecureExchangerWriteFunc();
 
 		typedef void (Session::*InnerWriteFuncPtr)();
 		InnerWriteFuncPtr write_func_ptr;
@@ -164,6 +167,20 @@ class Neter
 	public:
 		const std::string& GetIP() const { return ip; }
 		int GetPort() const { return port; }
+
+	public:
+		typedef std::shared_ptr<SSL> SSLPtr;
+		typedef std::shared_ptr<SSL_CTX> SSLCTXPtr;
+	private:
+		bool acceptor_use_secure_flag;
+		SSLCTXPtr ssl_ctx_ptr;
+		SSLPtr ssl_ptr;
+
+	public:
+		void SetSecureFlag(bool b) { acceptor_use_secure_flag = b; }
+		bool GetSecureFlag() const { return acceptor_use_secure_flag; }
+		void SetSSLPtr(SSLPtr ptr) { ssl_ptr = ptr; }
+		void SetSSLCTXPtr(SSLCTXPtr ptr) { ssl_ctx_ptr = ptr; }
 	};
 	// session end
 
@@ -217,6 +234,28 @@ private:
 	typedef std::list<session_id_t> SessionKeyList;
 	SessionKeyList ready_close_session_list;
 	SpinLock ready_close_session_list_lock;
+public:
+	class SecureConfig
+	{
+	public:
+		enum ENABLE_PARAM
+		{
+			DISABLE = 0,
+			ENABLE = 1,
+		};
+
+		SecureConfig(ENABLE_PARAM p = DISABLE, const std::string &c = "", const std::string &pk = "")
+		: param(p), cert(c), pkey(pk)
+		{}
+
+		bool IsEnable() const { return param == ENABLE; }
+		const std::string& GetCertPath() const { return cert; }
+		const std::string& GetPkeyPath() const { return pkey; }
+	private:
+		const char param;
+		const std::string cert;
+		const std::string pkey;
+	};
 
 private:
 	enum
@@ -257,10 +296,10 @@ public:
 	}
 
 	template<typename PROTOCOL>
-	static bool Listen(const char *ip, int port, std::function<void (const PROTOCOL &, session_id_t)> callback);
+	static bool Listen(const char *ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, const SecureConfig &sc = SecureConfig());
 
 	template<typename PROTOCOL>
-	static bool Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback);
+	static bool Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, const SecureConfig &sc = SecureConfig());
 
 	template<typename PROTOCOL>
 	static bool SendProtocol(session_id_t sid, const PROTOCOL &protocol);
@@ -294,7 +333,7 @@ bool Neter::SendProtocol(session_id_t sid, const PROTOCOL &protocol)
 }
 
 template<typename PROTOCOL>
-bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback)
+bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, const SecureConfig &sc)
 {
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0)
@@ -358,8 +397,28 @@ bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback cc
 }
 
 template<typename PROTOCOL>
-bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL &, session_id_t sid)> callback)
+bool Neter::Listen(const char *ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t sid)> callback, const SecureConfig &sc)
 {
+	std::shared_ptr<SSL_CTX> tmp_ctx;
+	if(sc.IsEnable())
+	{
+		tmp_ctx.reset(SSL_CTX_new(TLS_server_method()), SSL_CTX_free);
+		if(tmp_ctx == nullptr)
+		{
+			Log::Error("Neter::Listen, SSL_CTX_new failed !");
+			return false;
+		}
+
+		if(1 != SSL_CTX_use_certificate_file(tmp_ctx.get(), sc.GetCertPath().c_str(), X509_FILETYPE_PEM)
+			|| 1 != SSL_CTX_use_PrivateKey_file(tmp_ctx.get(), sc.GetPkeyPath().c_str(), X509_FILETYPE_PEM)
+			|| 1 != SSL_CTX_check_private_key(tmp_ctx.get()))
+		{
+			Log::Error("Neter::Listen, private key or certificate is invalid ",
+					", pkey=", sc.GetPkeyPath(),
+					", cert=", sc.GetCertPath());
+			return false;
+		}
+	}
 	if(!ip)
 	{
 		Log::Error("Neter::Listen, invalid ip address.");
@@ -406,7 +465,11 @@ bool Neter::Listen(const char *ip, int port, std::function<void (const PROTOCOL 
 	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::ACCEPTOR_SESSION, sockfd));
 	ptr->SetIP(ip);
 	ptr->SetPort(port);
+	ptr->SetConnectCallback(ccb);
+	ptr->SetDisconnectCallback(dcb);
 	ptr->InitCallback<PROTOCOL>(callback);
+	ptr->SetSecureFlag(sc.IsEnable());
+	ptr->SetSSLCTXPtr(tmp_ctx);
 	Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
 	ev.data.u64 = ptr->GetSID();
 	Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);

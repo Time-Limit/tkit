@@ -12,6 +12,7 @@ Neter::Session::Session(session_id_t s, SESSION_TYPE t, int f)
 , read_func_ptr(&Session::DefaultReadFunc)
 , write_func_ptr(&Session::DefaultWriteFunc)
 , port(0)
+, acceptor_use_secure_flag(false)
 {
 	switch(type)
 	{
@@ -144,7 +145,7 @@ void Neter::Session::AcceptorReadFunc()
 		{
 			fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL) | O_NONBLOCK);
 
-			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::EXCHANGE_SESSION, new_fd));
+			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), GetSecureFlag() ? Session::SECURE_EXCHANGE_SESSION : Session::EXCHANGE_SESSION, new_fd));
 			server_addr_len = sizeof(accept_addr);
 			getpeername(new_fd, (struct sockaddr *)&accept_addr, &server_addr_len);
 			char ip_buff[16] = "0.0.0.0";
@@ -152,7 +153,20 @@ void Neter::Session::AcceptorReadFunc()
 			ip_buff[15] = 0;
 			ptr->SetIP(ip_buff);
 			ptr->SetPort(ntohs(accept_addr.sin_port));
+			if(connect_callback)
+			{
+				connect_callback(ptr->GetSID());
+				ptr->SetConnectCallback(connect_callback);
+			}
+			ptr->SetDisconnectCallback(disconnect_callback);
 			ptr->InitCallback(callback_ptr);
+			if(GetSecureFlag())
+			{
+				SSLPtr ssl_ptr(SSL_new(ssl_ctx_ptr.get()), SSL_free);
+				SSL_set_accept_state(ssl_ptr.get());
+				SSL_set_fd(ssl_ptr.get(), fd);
+				ptr->SetSSLPtr(ssl_ptr);
+			}
 
 			Log::Trace("Neter::Session::AcceptorReadFunc, client's ip: ", ptr->GetIP(), ", port: ", ptr->GetPort());
 			epoll_event ev;
@@ -185,7 +199,7 @@ void Neter::Session::AcceptorReadFunc()
 
 void Neter::Session::ExchangerReadFunc()
 {
-	const size_t READ_BUFF_SIZE = 1024;
+	const static size_t READ_BUFF_SIZE = 1024;
 	unsigned char read_buff[READ_BUFF_SIZE];
 	size_t allcnt = 0;
 	int percnt = 0;
@@ -226,7 +240,130 @@ void Neter::Session::ExchangerReadFunc()
 
 void Neter::Session::SecureExchangerReadFunc()
 {
+	const static size_t READ_BUFF_SIZE = 1024;
+	unsigned char read_buff[READ_BUFF_SIZE];
+	size_t allcnt = 0;
+	size_t percnt = 0;
+	int res = 0;
+
+	for(;;)
+	{
+		res = SSL_read_ex(ssl_ptr.get(), read_buff, READ_BUFF_SIZE, &percnt);
+		Log::Debug("Neter::Session::SecureExchangeReadFunc",
+				", res=", res,
+				", percnt=", percnt);
+		if(res == 1)
+		{
+			allcnt += percnt;
+			read_data.insert(read_data.end(), read_buff, percnt);
+		}
+		else
+		{
+			int error = SSL_get_error(ssl_ptr.get(), res);
+			if(error == SSL_ERROR_WANT_READ)
+			{
+				break;
+			}
+			else if(error == SSL_ERROR_WANT_WRITE)
+			{
+				break;
+			}
+			else if(error == SSL_ERROR_NONE)
+			{
+			}
+			else if(error == SSL_ERROR_ZERO_RETURN)
+			{
+					Close();
+					return ;
+			}
+			else
+			{
+				Close();
+				return ;
+			}
+		}
+	}
+
+	if(allcnt == 0)
+	{
+		Close();
+		return ;
+	}
+
 	return ;
+}
+
+void Neter::Session::SecureExchangerWriteFunc()
+{
+	SendDataList tmp_send_data_list;
+	{
+		SpinLockGuard guard(send_data_list_lock);
+		swap(tmp_send_data_list, send_data_list);
+	}
+
+	while(tmp_send_data_list.size() > 0)
+	{
+		const Octets &data = tmp_send_data_list.front();
+		int res = 0;
+		size_t percnt = 0;
+		res = SSL_write_ex(ssl_ptr.get(), static_cast<const char *>(data.begin())+cursor_of_first_send_data, data.size() - cursor_of_first_send_data, &percnt);
+		if(res == 1)
+		{
+			cursor_of_first_send_data += percnt;
+			if(cursor_of_first_send_data == data.size())
+			{
+				tmp_send_data_list.pop_front();
+				cursor_of_first_send_data = 0;
+			}
+		}
+		else
+		{
+			int error = SSL_get_error(ssl_ptr.get(), res);
+			if(error == SSL_ERROR_WANT_READ)
+			{
+				break;
+			}
+			else if(error == SSL_ERROR_WANT_WRITE)
+			{
+				break;
+			}
+			else if(error == SSL_ERROR_NONE)
+			{
+			}
+			else if(error == SSL_ERROR_ZERO_RETURN)
+			{
+					Close();
+					return ;
+			}
+			else
+			{
+				Close();
+				return ;
+			}
+		}
+	}
+
+	if(tmp_send_data_list.size() > 0)
+	{
+		{
+			SpinLockGuard guard(send_data_list_lock);
+			auto rb = tmp_send_data_list.rbegin();
+			auto re = tmp_send_data_list.rend();
+			for(; rb != re; ++rb)
+			{
+				send_data_list.push_front(*rb);
+			}
+			//for(const auto &p : tmp_send_data_list)
+			//{
+			//	send_data_list.push_front(p);
+			//}
+		}
+		SetEventFlag(WRITE_READY);
+	}
+	else
+	{
+		SetEventFlag(WRITE_ACCESS);
+	}
 }
 
 void Neter::Session::Read(SessionPtr ptr)

@@ -121,6 +121,8 @@ Neter::Neter()
 	{
 		Log::Error("Neter::Neter, add poll task failed!!!");
 	}
+
+	SSL_library_init();
 }
 
 Neter::~Neter()

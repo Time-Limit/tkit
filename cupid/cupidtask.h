@@ -56,6 +56,7 @@ public:
 				res_vis.SetVersion("HTTP/1.1");
 				res_vis.SetStatus(HTTP_SC_NOT_FOUND);
 				res_vis.SetStatement(GetStatusCodeInfo(HTTP_SC_NOT_FOUND));
+				res_vis.SetHeader("Content-Length", 0);
 			}
 		}
 

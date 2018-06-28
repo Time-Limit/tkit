@@ -121,8 +121,16 @@ void Neter::Session::ConnectorWriteFunc()
 		return ;
 	}
 
-	write_func_ptr = &Session::ExchangerWriteFunc;
-	read_func_ptr = &Session::ExchangerReadFunc;
+	if(GetSecureFlag())
+	{
+		write_func_ptr = &Session::SecureExchangerWriteFunc;
+		read_func_ptr = &Session::SecureExchangerReadFunc;
+	}
+	else
+	{
+		write_func_ptr = &Session::ExchangerWriteFunc;
+		read_func_ptr = &Session::ExchangerReadFunc;
+	}
 
 	Log::Trace("Neter::Session::ConnectorWriteFunc, connect success, ip=", GetIP()
 				, ", port=", GetPort());
@@ -266,7 +274,8 @@ void Neter::Session::SecureExchangerReadFunc()
 			int error = SSL_get_error(ssl_ptr.get(), res);
 			Log::Debug("Neter::Session::SecureExchangeReadFunc",
 					", res=", res,
-					", error=" , error);
+					", error=" , error,
+					", info=", ERR_error_string(error, nullptr));
 			if(error == SSL_ERROR_WANT_READ)
 			{
 				break;
@@ -286,6 +295,10 @@ void Neter::Session::SecureExchangerReadFunc()
 			}
 			else
 			{
+				Log::Error("Neter::Session::SecureExchangeReadFunc, fatal",
+						", res=", res,
+						", error=" , error,
+						", info=", ERR_error_string(error, nullptr));
 				Close();
 				return ;
 			}
@@ -313,9 +326,15 @@ void Neter::Session::SecureExchangerWriteFunc()
 			int error = SSL_get_error(ssl_ptr.get(), res);
 			Log::Debug("Neter::Session::SecureExchangeWriteFunc, connect",
 					", res=", res,
-					", error=" , error);
+					", error=" , error,
+					", info=", ERR_error_string(error, nullptr));
+
 			if(error != SSL_ERROR_WANT_WRITE && error != SSL_ERROR_WANT_READ)
 			{
+				Log::Error("Neter::Session::SecureExchangeWriteFunc, connect, fatal",
+						", res=", res,
+						", error=" , error,
+						", info=", ERR_error_string(error, nullptr));
 				Close();
 				return ;
 			}
@@ -342,7 +361,8 @@ void Neter::Session::SecureExchangerWriteFunc()
 			int error = SSL_get_error(ssl_ptr.get(), res);
 			Log::Debug("Neter::Session::SecureExchangeWriteFunc",
 					", res=", res,
-					", error=" , error);
+					", error=" , error,
+					", info=", ERR_error_string(error, nullptr));
 			if(error == SSL_ERROR_WANT_READ)
 			{
 				break;
@@ -361,6 +381,10 @@ void Neter::Session::SecureExchangerWriteFunc()
 			}
 			else
 			{
+				Log::Error("Neter::Session::SecureExchangeWriteFunc, fatal",
+						", res=", res,
+						", error=" , error,
+						", info=", ERR_error_string(error, nullptr));
 				Close();
 				return ;
 			}

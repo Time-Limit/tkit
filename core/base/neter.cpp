@@ -2,6 +2,8 @@
 
 using namespace TCORE;
 
+const std::string Neter::CA_FILE_PATH = "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem";
+
 bool Neter::Ctrl(int op, int fd, struct epoll_event *event)
 {
 	int res = epoll_ctl(epoll_instance_fd, op, fd, event);
@@ -134,6 +136,7 @@ Neter::Neter()
 	}
 
 	SSL_library_init();
+	SSL_load_error_strings();
 }
 
 Neter::~Neter()

@@ -2,6 +2,7 @@
 #define _NETER_H_
 
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/epoll.h>
@@ -29,6 +30,9 @@ namespace TCORE
 
 class Neter
 {
+public:
+	static const std::string CA_FILE_PATH;
+private:
 	class Session;
 	typedef std::shared_ptr<Session> SessionPtr;
 	friend class Session;
@@ -299,7 +303,7 @@ public:
 	static bool Listen(const char *ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, const SecureConfig &sc = SecureConfig());
 
 	template<typename PROTOCOL>
-	static bool Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, const SecureConfig &sc = SecureConfig());
+	static bool Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, bool is_enable_secure = false);
 
 	template<typename PROTOCOL>
 	static bool SendProtocol(session_id_t sid, const PROTOCOL &protocol);
@@ -333,8 +337,27 @@ bool Neter::SendProtocol(session_id_t sid, const PROTOCOL &protocol)
 }
 
 template<typename PROTOCOL>
-bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, const SecureConfig &sc)
+bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, bool is_enable_secure)
 {
+	Session::SSLCTXPtr tmp_ctx;
+	if(is_enable_secure)
+	{
+		tmp_ctx.reset(SSL_CTX_new(TLS_client_method()), SSL_CTX_free);
+		if(tmp_ctx == nullptr)
+		{
+			Log::Error("Neter::Connect, SSL_CTX_new failed !");
+			return false;
+		}
+
+		SSL_CTX_set_verify (tmp_ctx.get(), SSL_VERIFY_PEER, NULL);
+
+		if(1 != SSL_CTX_load_verify_locations (tmp_ctx.get(), CA_FILE_PATH.c_str(), NULL))
+		{
+			Log::Error("Neter::Connect, verify or load failed !");
+			return false;
+		}
+	}
+
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0)
 	{
@@ -361,6 +384,12 @@ bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback cc
 			ptr->SetConnectCallback(ccb);
 			ptr->SetDisconnectCallback(dcb);
 			ptr->SetEventFlag(Session::WRITE_READY);
+			ptr->SetSSLCTXPtr(tmp_ctx);
+			Session::SSLPtr ssl_ptr(SSL_new(tmp_ctx.get()), SSL_free);
+			SSL_set_fd(ssl_ptr.get(), ptr->GetFD());
+			SSL_set_connect_state(ssl_ptr.get());
+			ptr->SetSSLPtr(ssl_ptr);
+			ptr->SetSecureFlag(is_enable_secure);
 			epoll_event ev;
 			ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
 			ev.data.u64 = ptr->GetSID();
@@ -383,8 +412,22 @@ bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback cc
 	ptr->SetConnectCallback(ccb);
 	ptr->SetDisconnectCallback(dcb);
 	ptr->SetNeedDeserialize(true);
-	ptr->write_func_ptr = &Session::ExchangerWriteFunc;
-	ptr->read_func_ptr = &Session::ExchangerReadFunc;
+	ptr->SetSSLCTXPtr(tmp_ctx);
+	Session::SSLPtr ssl_ptr(SSL_new(tmp_ctx.get()), SSL_free);
+	SSL_set_fd(ssl_ptr.get(), ptr->GetFD());
+	SSL_set_connect_state(ssl_ptr.get());
+	ptr->SetSSLPtr(ssl_ptr);
+	ptr->SetSecureFlag(is_enable_secure);
+	if(ptr->GetSecureFlag())
+	{
+		ptr->write_func_ptr = &Session::SecureExchangerWriteFunc;
+		ptr->read_func_ptr = &Session::SecureExchangerReadFunc;
+	}
+	else
+	{
+		ptr->write_func_ptr = &Session::ExchangerWriteFunc;
+		ptr->read_func_ptr = &Session::ExchangerReadFunc;
+	}
 
 	epoll_event ev;
 	ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
@@ -399,7 +442,7 @@ bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback cc
 template<typename PROTOCOL>
 bool Neter::Listen(const char *ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t sid)> callback, const SecureConfig &sc)
 {
-	std::shared_ptr<SSL_CTX> tmp_ctx;
+	Session::SSLCTXPtr tmp_ctx;
 	if(sc.IsEnable())
 	{
 		tmp_ctx.reset(SSL_CTX_new(TLS_server_method()), SSL_CTX_free);

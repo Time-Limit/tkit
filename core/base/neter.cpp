@@ -17,13 +17,13 @@ void Neter::TryAddReadTask(SessionPtr ptr)
 {
 	if(false == ptr->TestAndModifyEventFlag(Session::READ_ACCESS|Session::READ_PENDING, Session::READ_ACCESS, Session::READ_PENDING, Session::EMPTY_EVENT_FLAG))
 	{
-		Log::Debug("Neter::Session::TryAddReadTask, unexcept event flag");
+		Log::Debug("Neter::TryAddReadTask, unexcept event flag");
 		return ;
 	}
 
 	if(false == Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionReadTask(ptr))))
 	{
-		Log::Error("Neter::Session::TryAddReadTask, add read task failed");
+		Log::Error("Neter::TryAddReadTask, add read task failed");
 		ptr->ClrEventFlag(Session::READ_PENDING);
 		return ;
 	}
@@ -32,15 +32,26 @@ void Neter::TryAddReadTask(SessionPtr ptr)
 
 void Neter::TryAddWriteTask(SessionPtr ptr)
 {
-	if(false == ptr->TestAndModifyEventFlag(Session::WRITE_ACCESS|Session::WRITE_PENDING|Session::WRITE_READY, Session::WRITE_ACCESS|Session::WRITE_READY, Session::WRITE_PENDING, Session::EMPTY_EVENT_FLAG))
+	if(ptr->GetSecureFlag())
 	{
-		Log::Debug("Neter::Session::TryAddWriteTask, unexcept event flag");
-		return ;
+		if(false == ptr->TestAndModifyEventFlag(Session::WRITE_ACCESS|Session::WRITE_PENDING, Session::WRITE_ACCESS, Session::WRITE_PENDING, Session::EMPTY_EVENT_FLAG))
+		{
+			Log::Debug("Neter::TryAddWriteTask, secure session, unexcept event flag");
+			return ;
+		}
+	}
+	else
+	{
+		if(false == ptr->TestAndModifyEventFlag(Session::WRITE_ACCESS|Session::WRITE_PENDING|Session::WRITE_READY, Session::WRITE_ACCESS|Session::WRITE_READY, Session::WRITE_PENDING, Session::EMPTY_EVENT_FLAG))
+		{
+			Log::Debug("Neter::TryAddWriteTask, unexcept event flag");
+			return ;
+		}
 	}
 
 	if(false == Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionWriteTask(ptr))))
 	{
-		Log::Error("Neter::Session::TryAddWriteTask, add write task failed");
+		Log::Error("Neter::TryAddWriteTask, add write task failed");
 		ptr->ClrEventFlag(Session::WRITE_PENDING);
 		return ;
 	}

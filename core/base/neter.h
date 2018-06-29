@@ -454,7 +454,10 @@ bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb
 
 	Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
 	Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
-	ccb(ptr->GetSID());
+	if(ccb)
+	{
+		ccb(ptr->GetSID());
+	}
 	return true;
 }
 

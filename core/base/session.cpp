@@ -134,7 +134,10 @@ void Neter::Session::ConnectorWriteFunc()
 
 	ClrEventFlag(Session::WRITE_READY);
 
-	connect_callback(GetSID());
+	if(connect_callback)
+	{
+		connect_callback(GetSID());
+	}
 }
 
 void Neter::Session::AcceptorReadFunc()

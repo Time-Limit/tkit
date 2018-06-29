@@ -6,7 +6,6 @@ Neter::Session::Session(session_id_t s, SESSION_TYPE t, int f)
 : sid(s)
 , fd(f)
 , type(t)
-, is_need_deserialize(false)
 , event_flag(0)
 , cursor_of_first_send_data(0)
 , read_func_ptr(&Session::DefaultReadFunc)
@@ -28,13 +27,11 @@ Neter::Session::Session(session_id_t s, SESSION_TYPE t, int f)
 		{
 			read_func_ptr = &Session::ExchangerReadFunc;
 			write_func_ptr = &Session::ExchangerWriteFunc;
-			SetNeedDeserialize(true);
 		}break;
 		case SECURE_EXCHANGE_SESSION:
 		{
 			read_func_ptr = &Session::SecureExchangerReadFunc;
 			write_func_ptr = &Session::SecureExchangerWriteFunc;
-			SetNeedDeserialize(true);
 		}break;
 		default:
 		{
@@ -136,7 +133,6 @@ void Neter::Session::ConnectorWriteFunc()
 				, ", port=", GetPort());
 
 	ClrEventFlag(Session::WRITE_READY);
-	SetNeedDeserialize(true);
 
 	connect_callback(GetSID());
 }
@@ -169,13 +165,12 @@ void Neter::Session::AcceptorReadFunc()
 				ptr->SetConnectCallback(connect_callback);
 			}
 			ptr->SetDisconnectCallback(disconnect_callback);
-			ptr->InitCallback(callback_ptr);
+			ptr->InitDeserializeFunc(deserialize);
 			if(GetSecureFlag())
 			{
 				SSLPtr ssl_ptr(SSL_new(ssl_ctx_ptr.get()), SSL_free);
 				SSL_set_accept_state(ssl_ptr.get());
 				SSL_set_fd(ssl_ptr.get(), ptr->GetFD());
-				ptr->SetEventFlag(WRITE_READY);
 				ptr->SetSSLPtr(ssl_ptr);
 				ptr->SetSecureFlag(true);
 			}
@@ -248,6 +243,11 @@ void Neter::Session::ExchangerReadFunc()
 		Close();
 		return ;
 	}
+
+	if(read_data.size() && allcnt)
+	{
+		deserialize(GetSID(), read_data);
+	}
 }
 
 void Neter::Session::SecureExchangerReadFunc()
@@ -303,6 +303,11 @@ void Neter::Session::SecureExchangerReadFunc()
 				return ;
 			}
 		}
+	}
+
+	if(read_data.size() && allcnt)
+	{
+		deserialize(GetSID(), read_data);
 	}
 
 	return ;
@@ -422,11 +427,6 @@ void Neter::Session::Read(SessionPtr ptr)
 	}
 
 	(ptr.get()->*(ptr->read_func_ptr))();
-	
-	if(ptr->IsNeedDeserialize())
-	{
-		ptr->callback_ptr->Deserialize(ptr->GetSID(), ptr->read_data);
-	}
 }
 
 void Neter::Session::ExchangerWriteFunc()

@@ -66,13 +66,13 @@ int main(int argc, char **argv)
 								return task_id%thread_size;
 								});
 
-	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, nullptr, nullptr, [&logic_thread_pool](const HttpRequest &p, session_id_t sid)->void
+	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, nullptr, nullptr, [&logic_thread_pool](HttpRequest &&p, session_id_t sid)->void
 								{
 									logic_thread_pool.AddTask(TaskPtr(new HandleHttpRequestTask(sid, sid, p)));
 								});
 	std::cout << "main-function, result of Neter::Listen is " << res << std::endl;
 
-	res = Neter::Listen<HttpRequest>("0.0.0.0", default_https_port, nullptr, nullptr, [&logic_thread_pool](const HttpRequest &p, session_id_t sid)->void
+	res = Neter::Listen<HttpRequest>("0.0.0.0", default_https_port, nullptr, nullptr, [&logic_thread_pool](HttpRequest &&p, session_id_t sid)->void
 								{
 									logic_thread_pool.AddTask(TaskPtr(new HandleHttpRequestTask(sid, sid, p)));
 								},
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 									Neter::SendProtocol(sid, req);
 								}; 
 	
-	std::function<void(const HttpResponse &p, session_id_t sid)> deserialize = [](const HttpResponse &p, session_id_t sid)->void
+	std::function<void(HttpResponse &&p, session_id_t sid)> deserialize = [](HttpResponse &&p, session_id_t sid)->void
 								{
 									std::cout << "receive response !!!" << std::endl;
 								};

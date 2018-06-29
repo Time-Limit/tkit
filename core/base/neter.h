@@ -4,6 +4,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <netinet/in.h>
+#include <type_traits>
 #include <sys/types.h>
 #include <sys/epoll.h>
 #include <arpa/inet.h>
@@ -32,6 +33,23 @@ class Neter
 {
 public:
 	static const std::string CA_FILE_PATH;
+
+	struct Callback
+	{
+		template<typename PROTOCOL>
+		struct Response
+		{
+			typedef std::function<void (PROTOCOL &&, session_id_t)> Func;
+		};
+		struct Connect
+		{
+			typedef std::function<void (session_id_t/*new sid*/)> Func;
+		};
+		struct Disconnect
+		{
+			typedef std::function<void (session_id_t/*old sid*/, const std::string&/*ip*/, int/*port*/)> Func;
+		};
+	};
 private:
 	class Session;
 	typedef std::shared_ptr<Session> SessionPtr;
@@ -62,10 +80,7 @@ private:
 		session_id_t sid;
 		int fd;
 		SESSION_TYPE type;
-		bool is_need_deserialize;
 
-		void SetNeedDeserialize(bool flag) { is_need_deserialize = flag; }
-		bool IsNeedDeserialize() const { return is_need_deserialize; }
 		bool IsInitSuccess() const { return type != INVALID_SESSION; }
 
 		SESSION_TYPE GetType() const { return type; }
@@ -75,40 +90,20 @@ private:
 		// BASE DATA/METHOD END
 
 		//CALLBACK PART BEGIN
-		typedef std::function<void (session_id_t sid)> ConnectCallback;
-		ConnectCallback connect_callback;
-		void SetConnectCallback(ConnectCallback callback) { connect_callback = callback; }
+		Callback::Connect::Func connect_callback;
 
-		typedef std::function<void (session_id_t old_sid, const std::string &ip, int port)> DisconnectCallback;
-		DisconnectCallback disconnect_callback;
-		void SetDisconnectCallback(DisconnectCallback dcb) { disconnect_callback = dcb; }
-		
-		struct CallbackBase
+		Callback::Disconnect::Func disconnect_callback;
+
+		typedef std::function<void (session_id_t sid, Octets&)> DeserializeFunc;
+		DeserializeFunc deserialize;
+	public:
+		void SetConnectCallback(Callback::Connect::Func callback) { connect_callback = callback; }
+		void SetDisconnectCallback(Callback::Disconnect::Func dcb) { disconnect_callback = dcb; }
+		bool InitDeserializeFunc(DeserializeFunc df)
 		{
-			virtual void Deserialize(session_id_t, Octets &) = 0;
-			virtual ~CallbackBase() {};
-		};
-
-		template<typename PROTOCOL>
-		struct Callback : public CallbackBase
-		{
-			virtual void Deserialize(session_id_t sid, Octets &data) override;
-			typedef std::function<void (const PROTOCOL &, session_id_t)> CallbackFunc;
-			explicit Callback(CallbackFunc cb) : callback(cb) {}
-			explicit Callback(const Callback &c) : callback(c.callback) {}
-
-		private:
-			CallbackFunc callback;
-		};
-
-		typedef std::shared_ptr<CallbackBase> CallbackPtr;
-		CallbackPtr callback_ptr;
-
-		template<typename CALLBACKPTR>
-		void InitCallback(CALLBACKPTR cb);
-
-		template<typename PROTOCOL>
-		void InitCallback(std::function<void (const PROTOCOL &, session_id_t)> callback);
+			if(deserialize) return false;
+			return deserialize = df, true;
+		}
 
 		//CALLBACK PART END
 
@@ -152,13 +147,13 @@ private:
 		void AcceptorReadFunc();
 		void ExchangerReadFunc();
 		void SecureExchangerReadFunc();
-		void SecureExchangerWriteFunc();
 
 		typedef void (Session::*InnerWriteFuncPtr)();
 		InnerWriteFuncPtr write_func_ptr;
 		void DefaultWriteFunc() { Log::Error("Session::DefaultWriteFunc, you should never call me."); }
 		void ExchangerWriteFunc();
 		void ConnectorWriteFunc();
+		void SecureExchangerWriteFunc();
 
 		//HANDLE READ/WRITE PART END
 		
@@ -300,10 +295,10 @@ public:
 	}
 
 	template<typename PROTOCOL>
-	static bool Listen(const char *ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, const SecureConfig &sc = SecureConfig());
+	static bool Listen(const char *ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb, const SecureConfig &sc = SecureConfig());
 
 	template<typename PROTOCOL>
-	static bool Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, bool is_enable_secure = false);
+	static bool Connect(const std::string &ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb, bool is_enable_secure = false);
 
 	template<typename PROTOCOL>
 	static bool SendProtocol(session_id_t sid, const PROTOCOL &protocol);
@@ -337,7 +332,7 @@ bool Neter::SendProtocol(session_id_t sid, const PROTOCOL &protocol)
 }
 
 template<typename PROTOCOL>
-bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t)> callback, bool is_enable_secure)
+bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb, bool is_enable_secure)
 {
 	Session::SSLCTXPtr tmp_ctx;
 	if(is_enable_secure)
@@ -380,10 +375,29 @@ bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback cc
 			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
 			ptr->SetIP(ip);
 			ptr->SetPort(port);
-			ptr->InitCallback(callback);
+			ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void
+					{
+						OctetsStream os(data);
+						PROTOCOL p;
+						try
+						{
+							for(;;)
+							{
+								os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
+								rcb(std::move(p), sid);
+								Log::Debug("Neter::Connect, deserialize success !!!");
+							}
+						}
+						catch(...)
+						{
+							Log::Debug("Neter::Connect, deserialize throw exception !!!");
+							os >> OctetsStream::REVERT;
+						}
+						data = os.GetData();
+					}
+			);
 			ptr->SetConnectCallback(ccb);
 			ptr->SetDisconnectCallback(dcb);
-			ptr->SetEventFlag(Session::WRITE_READY);
 			ptr->SetSSLCTXPtr(tmp_ctx);
 			Session::SSLPtr ssl_ptr(SSL_new(tmp_ctx.get()), SSL_free);
 			SSL_set_fd(ssl_ptr.get(), ptr->GetFD());
@@ -408,10 +422,29 @@ bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback cc
 	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
 	ptr->SetIP(ip);
 	ptr->SetPort(port);
-	ptr->InitCallback(callback);
+	ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void
+			{
+				OctetsStream os(data);
+				PROTOCOL p;
+				try
+				{
+					for(;;)
+					{
+						os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
+						rcb(std::move(p), sid);
+						Log::Debug("Neter::Connect, deserialize success !!!");
+					}
+				}
+				catch(...)
+				{
+					Log::Debug("Neter::Connect, deserialize throw exception !!!");
+					os >> OctetsStream::REVERT;
+				}
+				data = os.GetData();
+			}
+	);
 	ptr->SetConnectCallback(ccb);
 	ptr->SetDisconnectCallback(dcb);
-	ptr->SetNeedDeserialize(true);
 	ptr->SetSSLCTXPtr(tmp_ctx);
 	Session::SSLPtr ssl_ptr(SSL_new(tmp_ctx.get()), SSL_free);
 	SSL_set_fd(ssl_ptr.get(), ptr->GetFD());
@@ -440,7 +473,7 @@ bool Neter::Connect(const std::string &ip, int port, Session::ConnectCallback cc
 }
 
 template<typename PROTOCOL>
-bool Neter::Listen(const char *ip, int port, Session::ConnectCallback ccb, Session::DisconnectCallback dcb, std::function<void (const PROTOCOL &, session_id_t sid)> callback, const SecureConfig &sc)
+bool Neter::Listen(const char *ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb, const SecureConfig &sc)
 {
 	Session::SSLCTXPtr tmp_ctx;
 	if(sc.IsEnable())
@@ -510,7 +543,27 @@ bool Neter::Listen(const char *ip, int port, Session::ConnectCallback ccb, Sessi
 	ptr->SetPort(port);
 	ptr->SetConnectCallback(ccb);
 	ptr->SetDisconnectCallback(dcb);
-	ptr->InitCallback<PROTOCOL>(callback);
+	ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void
+				{
+					OctetsStream os(data);
+					PROTOCOL p;
+					try
+					{
+						for(;;)
+						{
+							os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
+							rcb(std::move(p), sid);
+							Log::Debug("Neter::Listen, deserialize success !!!");
+						}
+					}
+					catch(...)
+					{
+						Log::Debug("Neter::Listen, deserialize throw exception !!!");
+						os >> OctetsStream::REVERT;
+					}
+					data = os.GetData();
+				}
+				);
 	ptr->SetSecureFlag(sc.IsEnable());
 	ptr->SetSSLCTXPtr(tmp_ctx);
 	Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
@@ -518,52 +571,6 @@ bool Neter::Listen(const char *ip, int port, Session::ConnectCallback ccb, Sessi
 	Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
 
 	return true;
-}
-
-template<typename CALLBACKPTR>
-void Neter::Session::InitCallback(CALLBACKPTR cb)
-{
-	if(callback_ptr.get())
-	{
-		Log::Error("Neter::Session::InitCallback, forbid reset callback!");
-		return ;
-	}
-
-	callback_ptr = cb;
-}
-
-template<typename PROTOCOL>
-void Neter::Session::InitCallback(std::function<void (const PROTOCOL &, session_id_t)> callback)
-{
-	if(callback_ptr.get())
-	{
-		Log::Error("Neter::Session::InitCallback, forbid reset callback!");
-		return ;
-	}
-	callback_ptr.reset(new Callback<PROTOCOL>(callback));
-}
-
-template<typename PROTOCOL>
-void Neter::Session::Callback<PROTOCOL>::Deserialize(session_id_t sid, Octets &data)
-{
-	OctetsStream os(data);
-	PROTOCOL p;
-	try
-	{
-		for(;;)
-		{
-			os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
-			callback(p, sid);
-			Log::Debug("Neter::Session::Callback, deserialize success !!!");
-		}
-	}
-	catch(...)
-	{
-		Log::Debug("Neter::Session::Callback, deserialize throw exception !!!");
-		os >> OctetsStream::REVERT;
-	}
-
-	data = os.GetData();
 }
 
 }

@@ -50,6 +50,32 @@ public:
 			typedef std::function<void (session_id_t/*old sid*/, const std::string&/*ip*/, int/*port*/)> Func;
 		};
 	};
+
+	template<typename PROTOCOL>
+	struct GenerateProtocol
+	{
+		static void Generate(session_id_t sid, Octets& data, typename Callback::Response<PROTOCOL>::Func rcb)
+		{
+			OctetsStream os(data);
+			PROTOCOL p;
+			try
+			{
+				for(;;)
+				{
+					os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
+					rcb(std::move(p), sid);
+					Log::Debug("Neter::GenerateProtocol::Generate, deserialize success !!!");
+				}
+			}
+			catch(...)
+			{
+				Log::Debug("Neter::GenerateProtocol::Generate, deserialize throw exception !!!");
+				os >> OctetsStream::REVERT;
+			}
+			data = os.GetData();
+		}
+	};
+
 private:
 	class Session;
 	typedef std::shared_ptr<Session> SessionPtr;
@@ -375,27 +401,7 @@ bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb
 			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
 			ptr->SetIP(ip);
 			ptr->SetPort(port);
-			ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void
-					{
-						OctetsStream os(data);
-						PROTOCOL p;
-						try
-						{
-							for(;;)
-							{
-								os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
-								rcb(std::move(p), sid);
-								Log::Debug("Neter::Connect, deserialize success !!!");
-							}
-						}
-						catch(...)
-						{
-							Log::Debug("Neter::Connect, deserialize throw exception !!!");
-							os >> OctetsStream::REVERT;
-						}
-						data = os.GetData();
-					}
-			);
+			ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void { GenerateProtocol<PROTOCOL>::Generate(sid, data, rcb);});
 			ptr->SetConnectCallback(ccb);
 			ptr->SetDisconnectCallback(dcb);
 			ptr->SetSSLCTXPtr(tmp_ctx);
@@ -422,27 +428,7 @@ bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb
 	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
 	ptr->SetIP(ip);
 	ptr->SetPort(port);
-	ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void
-			{
-				OctetsStream os(data);
-				PROTOCOL p;
-				try
-				{
-					for(;;)
-					{
-						os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
-						rcb(std::move(p), sid);
-						Log::Debug("Neter::Connect, deserialize success !!!");
-					}
-				}
-				catch(...)
-				{
-					Log::Debug("Neter::Connect, deserialize throw exception !!!");
-					os >> OctetsStream::REVERT;
-				}
-				data = os.GetData();
-			}
-	);
+	ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void { GenerateProtocol<PROTOCOL>::Generate(sid, data, rcb);});
 	ptr->SetConnectCallback(ccb);
 	ptr->SetDisconnectCallback(dcb);
 	ptr->SetSSLCTXPtr(tmp_ctx);
@@ -543,27 +529,7 @@ bool Neter::Listen(const char *ip, int port, Callback::Connect::Func ccb, Callba
 	ptr->SetPort(port);
 	ptr->SetConnectCallback(ccb);
 	ptr->SetDisconnectCallback(dcb);
-	ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void
-				{
-					OctetsStream os(data);
-					PROTOCOL p;
-					try
-					{
-						for(;;)
-						{
-							os >> OctetsStream::START >> p >> OctetsStream::COMMIT;
-							rcb(std::move(p), sid);
-							Log::Debug("Neter::Listen, deserialize success !!!");
-						}
-					}
-					catch(...)
-					{
-						Log::Debug("Neter::Listen, deserialize throw exception !!!");
-						os >> OctetsStream::REVERT;
-					}
-					data = os.GetData();
-				}
-				);
+	ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void { GenerateProtocol<PROTOCOL>::Generate(sid, data, rcb);});
 	ptr->SetSecureFlag(sc.IsEnable());
 	ptr->SetSSLCTXPtr(tmp_ctx);
 	Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));

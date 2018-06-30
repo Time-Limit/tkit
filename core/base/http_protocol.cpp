@@ -171,49 +171,49 @@ OctetsStream& HttpResponse::Deserialize(OctetsStream &os)
 
 OctetsStream& HttpResponse::Serialize(OctetsStream &os) const
 {
-	os.Append(version.c_str(), version.c_str()+version.size());
+	os.push_back(version.c_str(), version.c_str()+version.size());
 	os << ' ';
 	std::stringstream ss_status;
 	ss_status << status;
 	std::string str = ss_status.str();
-	os.Append(str.c_str(), str.c_str() + str.size());
+	os.push_back(str.c_str(), str.c_str() + str.size());
 	os << ' ';
-	os.Append(statement.c_str(), statement.c_str() + statement.size());
+	os.push_back(statement.c_str(), statement.c_str() + statement.size());
 	os << '\r' << '\n';
 
 	for(const auto &p : headers)
 	{
-		os.Append(p.first.c_str(), p.first.c_str() + p.first.size());
+		os.push_back(p.first.c_str(), p.first.c_str() + p.first.size());
 		os << ':' << ' ';
-		os.Append(p.second.c_str(), p.second.c_str() + p.second.size());
+		os.push_back(p.second.c_str(), p.second.c_str() + p.second.size());
 		os << '\r' << '\n';
 	}
 
 	os << '\r' << '\n';
 
-	os.Append(body.c_str(), body.c_str() + body.size());
+	os.push_back(body.c_str(), body.c_str() + body.size());
 
 	return os;
 }
 
 OctetsStream& HttpRequest::Serialize(OctetsStream &os) const
 {
-	os.Append(method.c_str(), method.c_str() + method.size());
+	os.push_back(method.c_str(), method.c_str() + method.size());
 	os << ' ';
-	os.Append(url.c_str(), url.c_str() + url.size());
+	os.push_back(url.c_str(), url.c_str() + url.size());
 	os << ' ';
-	os.Append(version.c_str(), version.c_str() + version.size());
+	os.push_back(version.c_str(), version.c_str() + version.size());
 	os << '\r' << '\n';
 	for(const auto &p : headers)
 	{
-		os.Append(p.first.c_str(), p.first.c_str() + p.first.size());
+		os.push_back(p.first.c_str(), p.first.c_str() + p.first.size());
 		os << ':' << ' ';
-		os.Append(p.second.c_str(), p.second.c_str() + p.second.size());
+		os.push_back(p.second.c_str(), p.second.c_str() + p.second.size());
 		os << '\r' << '\n';
 	}
 
 	os << '\r' << '\n';
-	os.Append(body.c_str(), body.c_str() + body.size());
+	os.push_back(body.c_str(), body.c_str() + body.size());
 
 	return os;
 }

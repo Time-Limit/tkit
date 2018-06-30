@@ -236,6 +236,22 @@ class OctetsStream
 		return *this;
 	}
 
+	OctetsStream& pop_bytes(Octets &d)
+	{
+		size_t size = 0;
+		operator>>(size);
+		if(cursor < data.size() && data.size() - cursor >= size)
+		{
+			d = Octets((char *)data.begin()+cursor, size);
+			cursor += size;
+		}
+		else
+		{
+			throw OSException(OSException::OS_EXCEPTION_LENGTH);
+		}
+		return *this;
+	}
+
 	template<typename T>
 	OctetsStream& push_bytes(const T &d)
 	{
@@ -254,6 +270,14 @@ class OctetsStream
 		}
 		data.insert(data.end(), &u.t, sizeof(T));
 #endif
+		return *this;
+	}
+
+	OctetsStream& push_bytes(const Octets &d)
+	{
+		size_t size = d.size();
+		operator<<(size);
+		data.insert(data.end(), d.begin(), d.size());
 		return *this;
 	}
 	
@@ -277,14 +301,13 @@ public:
 		unsigned char reason;
 		OSException(unsigned char r) : reason(r) {}
 	};
-
-	const Octets& GetData() const { return data; }
-
-	void Append(const void *x, const void *y) { data.insert(data.end(), x, y); }
-	
 	explicit OctetsStream() : start_cursor(0), cursor(0) {}
 	explicit OctetsStream(const Octets &d) : data(d), start_cursor(0), cursor(0) {}
 
+	const Octets& GetData() const { return data; }
+
+	void push_back(const void *x, const void *y) { data.insert(data.end(), x, y); }
+	void push_back(const void *x, size_t s) { data.insert(data.end(), x, ((const char *)x)+s); }
 	OctetsStream& operator<<(const Protocol &d);
 	OctetsStream& operator<<(const unsigned char &d) { return push_bytes(d); }
 	OctetsStream& operator<<(const char &d) { return push_bytes(d); }
@@ -296,7 +319,19 @@ public:
 	OctetsStream& operator<<(const int64_t &d) { return push_bytes(d); }
 	OctetsStream& operator<<(const float &d) { return push_bytes(d); }
 	OctetsStream& operator<<(const double &d) { return push_bytes(d); }
+	OctetsStream& operator<<(const Octets &d) { return push_bytes(d); }
 
+	Octets pop_front(size_t size)
+	{
+		if(cursor < data.size() && data.size() - cursor >= size)
+		{
+			Octets d = Octets((char *)data.begin()+cursor, size);
+			cursor += size;
+			return d;
+		}
+		throw OSException(OSException::OS_EXCEPTION_LENGTH);
+		return Octets();
+	}
 	OctetsStream& operator>>(Protocol &d);
 	OctetsStream& operator>>(unsigned char &d) { return pop_bytes(d); }
 	OctetsStream& operator>>(char &d) { return pop_bytes(d); }
@@ -308,6 +343,7 @@ public:
 	OctetsStream& operator>>(int64_t &d) { return pop_bytes(d); }
 	OctetsStream& operator>>(float &d) { return pop_bytes(d); }
 	OctetsStream& operator>>(double &d) { return pop_bytes(d); }
+	OctetsStream& operator>>(Octets &d) { return pop_bytes(d);}
 
 	OctetsStream& operator>>(const Start &start)
 	{

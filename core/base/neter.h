@@ -394,49 +394,50 @@ bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb
 
 	fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
 
+	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
+	if(is_enable_secure)
+	{
+		ptr->SetSSLCTXPtr(tmp_ctx);
+		Session::SSLPtr ssl_ptr(SSL_new(tmp_ctx.get()), SSL_free);
+		SSL_set_fd(ssl_ptr.get(), ptr->GetFD());
+		SSL_set_connect_state(ssl_ptr.get());
+		ptr->SetSSLPtr(ssl_ptr);
+		ptr->SetSecureFlag(is_enable_secure);
+	}
+	ptr->SetConnectCallback(ccb);
+	ptr->SetDisconnectCallback(dcb);
+	ptr->SetIP(ip);
+	ptr->SetPort(port);
+	ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void { GenerateProtocol<PROTOCOL>::Generate(sid, data, rcb);});
+
 	if(connect(sock, (sockaddr*)&addr, sizeof(addr)) < 0)
 	{
 		if(errno == EINPROGRESS)
 		{
-			SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
-			ptr->SetIP(ip);
-			ptr->SetPort(port);
-			ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void { GenerateProtocol<PROTOCOL>::Generate(sid, data, rcb);});
-			ptr->SetConnectCallback(ccb);
-			ptr->SetDisconnectCallback(dcb);
-			ptr->SetSSLCTXPtr(tmp_ctx);
-			Session::SSLPtr ssl_ptr(SSL_new(tmp_ctx.get()), SSL_free);
-			SSL_set_fd(ssl_ptr.get(), ptr->GetFD());
-			SSL_set_connect_state(ssl_ptr.get());
-			ptr->SetSSLPtr(ssl_ptr);
-			ptr->SetSecureFlag(is_enable_secure);
 			epoll_event ev;
 			ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
 			ev.data.u64 = ptr->GetSID();
 
+			if(ptr->GetSecureFlag())
+			{
+				ptr->read_func_ptr = &Session::SecureExchangerReadFunc;
+			}
+			else
+			{
+				ptr->read_func_ptr = &Session::ExchangerReadFunc;
+			}
+
+			ptr->SetEventFlag(Session::WRITE_READY);
 			Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
 			Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);
 			return true;
 		}
 		Log::Error("Neter::Connect, ip=", ip, " ,port=", port, ", connect failed, info=", strerror(errno));
-		close(sock);
 		return false;
 	}
 
 	Log::Trace("Neter::Connect, connect success, ip=", ip, ", port=", port);
 
-	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
-	ptr->SetIP(ip);
-	ptr->SetPort(port);
-	ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void { GenerateProtocol<PROTOCOL>::Generate(sid, data, rcb);});
-	ptr->SetConnectCallback(ccb);
-	ptr->SetDisconnectCallback(dcb);
-	ptr->SetSSLCTXPtr(tmp_ctx);
-	Session::SSLPtr ssl_ptr(SSL_new(tmp_ctx.get()), SSL_free);
-	SSL_set_fd(ssl_ptr.get(), ptr->GetFD());
-	SSL_set_connect_state(ssl_ptr.get());
-	ptr->SetSSLPtr(ssl_ptr);
-	ptr->SetSecureFlag(is_enable_secure);
 	if(ptr->GetSecureFlag())
 	{
 		ptr->write_func_ptr = &Session::SecureExchangerWriteFunc;

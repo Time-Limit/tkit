@@ -517,6 +517,10 @@ void Neter::Session::Write(SessionPtr ptr)
 
 bool Neter::Session::AppendSendData(SessionPtr ptr, const Octets &data)
 {
+	if(data.size() <= 0)
+	{
+		return true;
+	}
 	try
 	{
 		ptr->SetEventFlag(WRITE_READY);

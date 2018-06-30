@@ -1,14 +1,14 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-#include <stdio.h>
-#include <stdarg.h>
-#include <string>
-#include <tuple>
-#include <sstream>
-#include <iostream>
-#include <array>
 #include <functional>
+#include <iostream>
+#include <stdarg.h>
+#include <stdio.h>
+#include <sstream>
+#include <string>
+#include <array>
+#include <tuple>
 
 namespace TCORE
 {

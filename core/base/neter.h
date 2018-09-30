@@ -1,8 +1,6 @@
 #ifndef _NETER_H_
 #define _NETER_H_
 
-#include <openssl/ssl.h>
-#include <openssl/err.h>
 #include <netinet/in.h>
 #include <type_traits>
 #include <sys/types.h>
@@ -93,7 +91,6 @@ private:
 			ACCEPTOR_SESSION = 0,
 			CONNECTOR_SESSION,
 			EXCHANGE_SESSION,
-			SECURE_EXCHANGE_SESSION,
 		};
 
 		Session(session_id_t sid, SESSION_TYPE type, int fd);
@@ -172,14 +169,12 @@ private:
 		void DefaultReadFunc() { Log::Error("Session::DefaultReadFunc, you should never call me."); }
 		void AcceptorReadFunc();
 		void ExchangerReadFunc();
-		void SecureExchangerReadFunc();
 
 		typedef void (Session::*InnerWriteFuncPtr)();
 		InnerWriteFuncPtr write_func_ptr;
 		void DefaultWriteFunc() { Log::Error("Session::DefaultWriteFunc, you should never call me."); }
 		void ExchangerWriteFunc();
 		void ConnectorWriteFunc();
-		void SecureExchangerWriteFunc();
 
 		//HANDLE READ/WRITE PART END
 		
@@ -192,20 +187,6 @@ private:
 	public:
 		const std::string& GetIP() const { return ip; }
 		int GetPort() const { return port; }
-
-	public:
-		typedef std::shared_ptr<SSL> SSLPtr;
-		typedef std::shared_ptr<SSL_CTX> SSLCTXPtr;
-	private:
-		bool acceptor_use_secure_flag;
-		SSLCTXPtr ssl_ctx_ptr;
-		SSLPtr ssl_ptr;
-
-	public:
-		void SetSecureFlag(bool b) { acceptor_use_secure_flag = b; }
-		bool GetSecureFlag() const { return acceptor_use_secure_flag; }
-		void SetSSLPtr(SSLPtr ptr) { ssl_ptr = ptr; }
-		void SetSSLCTXPtr(SSLCTXPtr ptr) { ssl_ctx_ptr = ptr; }
 	};
 	// session end
 
@@ -259,29 +240,6 @@ private:
 	typedef std::list<session_id_t> SessionKeyList;
 	SessionKeyList ready_close_session_list;
 	SpinLock ready_close_session_list_lock;
-public:
-	class SecureConfig
-	{
-	public:
-		enum ENABLE_PARAM
-		{
-			DISABLE = 0,
-			ENABLE = 1,
-		};
-
-		SecureConfig(ENABLE_PARAM p = DISABLE, const std::string &c = "", const std::string &pk = "")
-		: param(p), cert(c), pkey(pk)
-		{}
-
-		bool IsEnable() const { return param == ENABLE; }
-		const std::string& GetCertPath() const { return cert; }
-		const std::string& GetPkeyPath() const { return pkey; }
-	private:
-		const char param;
-		const std::string cert;
-		const std::string pkey;
-	};
-
 private:
 	enum
 	{
@@ -321,10 +279,10 @@ public:
 	}
 
 	template<typename PROTOCOL>
-	static bool Listen(const char *ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb, const SecureConfig &sc = SecureConfig());
+	static bool Listen(const char *ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb);
 
 	template<typename PROTOCOL>
-	static bool Connect(const std::string &ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb, bool is_enable_secure = false);
+	static bool Connect(const std::string &ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb);
 
 	template<typename PROTOCOL>
 	static bool SendProtocol(session_id_t sid, const PROTOCOL &protocol);
@@ -358,27 +316,8 @@ bool Neter::SendProtocol(session_id_t sid, const PROTOCOL &protocol)
 }
 
 template<typename PROTOCOL>
-bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb, bool is_enable_secure)
+bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb)
 {
-	Session::SSLCTXPtr tmp_ctx;
-	if(is_enable_secure)
-	{
-		tmp_ctx.reset(SSL_CTX_new(TLS_client_method()), SSL_CTX_free);
-		if(tmp_ctx == nullptr)
-		{
-			Log::Error("Neter::Connect, SSL_CTX_new failed !");
-			return false;
-		}
-
-		SSL_CTX_set_verify (tmp_ctx.get(), SSL_VERIFY_PEER, NULL);
-
-		if(1 != SSL_CTX_load_verify_locations (tmp_ctx.get(), CA_FILE_PATH.c_str(), NULL))
-		{
-			Log::Error("Neter::Connect, verify or load failed !");
-			return false;
-		}
-	}
-
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock < 0)
 	{
@@ -395,15 +334,6 @@ bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb
 	fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
 
 	SessionPtr ptr(new Session(Neter::GetInstance().GenerateSessionID(), Session::CONNECTOR_SESSION, sock));
-	if(is_enable_secure)
-	{
-		ptr->SetSSLCTXPtr(tmp_ctx);
-		Session::SSLPtr ssl_ptr(SSL_new(tmp_ctx.get()), SSL_free);
-		SSL_set_fd(ssl_ptr.get(), ptr->GetFD());
-		SSL_set_connect_state(ssl_ptr.get());
-		ptr->SetSSLPtr(ssl_ptr);
-		ptr->SetSecureFlag(is_enable_secure);
-	}
 	ptr->SetConnectCallback(ccb);
 	ptr->SetDisconnectCallback(dcb);
 	ptr->SetIP(ip);
@@ -418,14 +348,7 @@ bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb
 			ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
 			ev.data.u64 = ptr->GetSID();
 
-			if(ptr->GetSecureFlag())
-			{
-				ptr->read_func_ptr = &Session::SecureExchangerReadFunc;
-			}
-			else
-			{
-				ptr->read_func_ptr = &Session::ExchangerReadFunc;
-			}
+			ptr->read_func_ptr = &Session::ExchangerReadFunc;
 
 			ptr->SetEventFlag(Session::WRITE_READY);
 			Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
@@ -438,16 +361,8 @@ bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb
 
 	Log::Trace("Neter::Connect, connect success, ip=", ip, ", port=", port);
 
-	if(ptr->GetSecureFlag())
-	{
-		ptr->write_func_ptr = &Session::SecureExchangerWriteFunc;
-		ptr->read_func_ptr = &Session::SecureExchangerReadFunc;
-	}
-	else
-	{
-		ptr->write_func_ptr = &Session::ExchangerWriteFunc;
-		ptr->read_func_ptr = &Session::ExchangerReadFunc;
-	}
+	ptr->write_func_ptr = &Session::ExchangerWriteFunc;
+	ptr->read_func_ptr = &Session::ExchangerReadFunc;
 
 	epoll_event ev;
 	ev.events = EPOLLIN|EPOLLOUT|EPOLLET;
@@ -463,28 +378,8 @@ bool Neter::Connect(const std::string &ip, int port, Callback::Connect::Func ccb
 }
 
 template<typename PROTOCOL>
-bool Neter::Listen(const char *ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb, const SecureConfig &sc)
+bool Neter::Listen(const char *ip, int port, Callback::Connect::Func ccb, Callback::Disconnect::Func dcb, typename Callback::Response<PROTOCOL>::Func rcb)
 {
-	Session::SSLCTXPtr tmp_ctx;
-	if(sc.IsEnable())
-	{
-		tmp_ctx.reset(SSL_CTX_new(TLS_server_method()), SSL_CTX_free);
-		if(tmp_ctx == nullptr)
-		{
-			Log::Error("Neter::Listen, SSL_CTX_new failed !");
-			return false;
-		}
-
-		if(1 != SSL_CTX_use_certificate_file(tmp_ctx.get(), sc.GetCertPath().c_str(), X509_FILETYPE_PEM)
-			|| 1 != SSL_CTX_use_PrivateKey_file(tmp_ctx.get(), sc.GetPkeyPath().c_str(), X509_FILETYPE_PEM)
-			|| 1 != SSL_CTX_check_private_key(tmp_ctx.get()))
-		{
-			Log::Error("Neter::Listen, private key or certificate is invalid ",
-					", pkey=", sc.GetPkeyPath(),
-					", cert=", sc.GetCertPath());
-			return false;
-		}
-	}
 	if(!ip)
 	{
 		Log::Error("Neter::Listen, invalid ip address.");
@@ -534,8 +429,6 @@ bool Neter::Listen(const char *ip, int port, Callback::Connect::Func ccb, Callba
 	ptr->SetConnectCallback(ccb);
 	ptr->SetDisconnectCallback(dcb);
 	ptr->InitDeserializeFunc([rcb](session_id_t sid, Octets& data)->void { GenerateProtocol<PROTOCOL>::Generate(sid, data, rcb);});
-	ptr->SetSecureFlag(sc.IsEnable());
-	ptr->SetSSLCTXPtr(tmp_ctx);
 	Neter::GetInstance().session_container.insert(std::make_pair(ptr->GetSID(), ptr));
 	ev.data.u64 = ptr->GetSID();
 	Neter::GetInstance().Ctrl(EPOLL_CTL_ADD, ptr->GetFD(), &ev);

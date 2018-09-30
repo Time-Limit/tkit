@@ -53,9 +53,12 @@ private:
 class Key
 {
 	friend class Config;
-	template<typename T> friend class std::shared_ptr;
-	template<typename T1, typename T2> friend class std::map;
-	template<typename T1, typename T2> friend class std::pair;
+	template<typename T>
+	friend class std::shared_ptr;
+	template<typename T1, typename T2>
+	friend class std::map;
+	template<typename T1, typename T2>
+	friend class std::pair;
 	friend bool operator< (const Key&, const Key&);
 public:
 	using NumKey = unsigned int;
@@ -119,9 +122,12 @@ inline bool operator< (const Key &l, const Key &r)
 class Table
 {
 	friend class Value;
-	template<typename T> friend class std::shared_ptr;
-	template<typename T1, typename T2> friend class std::map;
-	template<typename T1, typename T2> friend class std::pair;
+	template<typename T>
+	friend class std::shared_ptr;
+	template<typename T1, typename T2>
+	friend class std::map;
+	template<typename T1, typename T2>
+	friend class std::pair;
 public:
 	const Value& operator[](const Key&) const;
 private:
@@ -132,9 +138,12 @@ private:
 class Value
 {
 	friend Config;
-	template<typename T> friend class std::shared_ptr;
-	template<typename T1, typename T2> friend class std::map;
-	template<typename T1, typename T2> friend class std::pair;
+	template<typename T>
+	friend class std::shared_ptr;
+	template<typename T1, typename T2>
+	friend class std::map;
+	template<typename T1, typename T2>
+	friend class std::pair;
 public:
 	using NumVal = double;
 	using StrVal = std::string;

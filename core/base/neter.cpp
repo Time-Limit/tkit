@@ -34,21 +34,10 @@ void Neter::TryAddReadTask(SessionPtr ptr)
 
 void Neter::TryAddWriteTask(SessionPtr ptr)
 {
-	if(ptr->GetSecureFlag())
+	if(false == ptr->TestAndModifyEventFlag(Session::WRITE_ACCESS|Session::WRITE_PENDING|Session::WRITE_READY, Session::WRITE_ACCESS|Session::WRITE_READY, Session::WRITE_PENDING, Session::EMPTY_EVENT_FLAG))
 	{
-		if(false == ptr->TestAndModifyEventFlag(Session::WRITE_ACCESS|Session::WRITE_PENDING, Session::WRITE_ACCESS, Session::WRITE_PENDING, Session::EMPTY_EVENT_FLAG))
-		{
-			Log::Debug("Neter::TryAddWriteTask, secure session, unexcept event flag");
-			return ;
-		}
-	}
-	else
-	{
-		if(false == ptr->TestAndModifyEventFlag(Session::WRITE_ACCESS|Session::WRITE_PENDING|Session::WRITE_READY, Session::WRITE_ACCESS|Session::WRITE_READY, Session::WRITE_PENDING, Session::EMPTY_EVENT_FLAG))
-		{
-			Log::Debug("Neter::TryAddWriteTask, unexcept event flag");
-			return ;
-		}
+		Log::Debug("Neter::TryAddWriteTask, unexcept event flag");
+		return ;
 	}
 
 	if(false == Neter::GetInstance().threadpool.AddTask(TaskPtr(new SessionWriteTask(ptr))))
@@ -134,9 +123,6 @@ Neter::Neter()
 	{
 		Log::Error("Neter::Neter, add poll task failed!!!");
 	}
-
-	SSL_library_init();
-	SSL_load_error_strings();
 }
 
 Neter::~Neter()

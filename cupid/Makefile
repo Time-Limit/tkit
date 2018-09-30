@@ -4,12 +4,11 @@ CC = g++
 core_objs = ../core/base/neter.o ../core/base/log.o ../core/base/octets.o \
 	    ../core/base/threadpool.o ../core/base/md5.o ../core/base/config.o \
 	    ../core/base/file.o ../core/base/http_protocol.o ../core/inl/enums.o \
-	    ../core/base/session.o ../core/inl/basetool.o ../core/base/resp_protocol.o \
-	    ../core/base/redisclient.o
+	    ../core/base/session.o ../core/inl/basetool.o
 
 cupid_objs = cupid.o cupidbase.o
 
-lib_objs = ../core/lib/lua/liblua.a -lssl -lcrypto
+lib_objs = ../core/lib/lua/liblua.a
 
 objs = $(core_objs) $(cupid_objs)
 

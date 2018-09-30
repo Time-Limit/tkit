@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
+#include "lock.h"
 
 namespace TCORE
 {
@@ -28,24 +29,32 @@ class Octets
 		size_t cap;
 		size_t len;
 		size_t ref;
+		SpinLock ref_lock;
 
 		void retain()
 		{
-			__asm__ __volatile__ (
-				"lock; add $1, %0	\n"
-				: "=m"(ref)
-			);
+			SpinLockGuard guard(ref_lock);
+			++ref;
+			//__asm__ __volatile__ (
+			//	"lock; add $1, %0	\n"
+			//	: "=m"(ref)
+			//);
 		}
 		void release()
 		{
-			size_t old;
-			__asm__ __volatile__ (
-				"lock; xadd  %2, %0	\n"
-				: "=m"(ref), "=r"(old)
-				: "1"(-1) : "memory"
-			);
+			SpinLockGuard guard(ref_lock);
+			--ref;
+			if(ref == 0){
+				delete this;
+			}
+			//size_t old;
+			//__asm__ __volatile__ (
+			//	"lock; xadd  %2, %0	\n"
+			//	: "=m"(ref), "=r"(old)
+			//	: "1"(-1) : "memory"
+			//);
 
-			if ( old == 1 ) delete this;
+			//if ( old == 1 ) delete this;
 		}
 
 		void* data() { return reinterpret_cast<void *>(this + 1); }

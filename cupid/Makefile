@@ -6,7 +6,7 @@ core_objs = ../core/base/neter.o ../core/base/log.o ../core/base/octets.o \
 	    ../core/base/file.o ../core/base/http_protocol.o ../core/inl/enums.o \
 	    ../core/base/session.o ../core/inl/basetool.o
 
-cupid_objs = cupid.o cupidbase.o
+cupid_objs = cupid.o cupidbase.o callback.o
 
 lib_objs = ../core/lib/lua/liblua.a
 
@@ -16,13 +16,18 @@ inl = -I../core/base -I../core/lib/lua -I../core/inl -I.
 
 flag = -D_LITTLE_ENDIAN_
 
-args = -Wall -g -std=c++11
+args = -Wall -g -std=c++11 -fPIC
 
-cupid: $(objs) 
-	$(CC) -o cupid $^ -lpthread -ldl $(lib_objs) $(args) $(flag)
+module_obj = libmodule.so
+
+cupid: $(objs) ${module_obj}
+	$(CC) -o cupid $^ -lpthread -ldl $(lib_objs) $(args) $(flag) -L./ -lmodule -Wl,-rpath .
+
+${module_obj} : example_module.cpp
+	$(CC) -o ${module_obj} -shared example_module.cpp
 
 $(objs) : %.o : %.cpp
 	$(CC) -c $^ -o $@ $(inl) -lpthread $(args) $(flag)
 
 clean:
-	rm -f $(objs) cupid
+	rm -f $(objs) cupid libmodule.so

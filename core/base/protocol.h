@@ -39,6 +39,7 @@ public:
 	void SetArgument(const std::string &k, const std::string &v) { packet.args[k] = v; }
 
 	std::string GetURL() const { return packet.url; }
+	const std::map<std::string, std::string>& GetArgs() const { return packet.args; }
 
 private:
 	PACKET &packet;

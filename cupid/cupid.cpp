@@ -2,10 +2,11 @@
 #include <unistd.h>
 
 #include "threadpool.h"
-#include "cupidtask.h"
 #include "cupidbase.h"
 #include "protocol.h"
+#include "callback.h"
 #include "config.h"
+#include "cupid.h"
 #include "neter.h"
 #include "file.h"
 #include "md5.h"
@@ -52,12 +53,12 @@ int main(int argc, char **argv)
 
 	const Config &cupid_config = *ConfigManager::GetInstance().GetConfig("cupid");
 
-	Log::GetInstance().SetDebugLevel();
-
 	default_http_port = cupid_config["http-port"].Num();
 	default_base_folder = cupid_config["base-folder"].Str();
 	default_file_name = cupid_config["default-file-name"].Str();
 	default_logic_thread_count = cupid_config["default-logic-thread-count"].Num();
+
+	ImportModule();
 
 	ThreadPool logic_thread_pool(default_logic_thread_count, ThreadPool::PT_XT_TO_XQ,
 								[](task_id_t task_id, size_t thread_size)->size_t
@@ -67,7 +68,8 @@ int main(int argc, char **argv)
 
 	bool res = Neter::Listen<HttpRequest>("0.0.0.0", default_http_port, nullptr, nullptr, [&logic_thread_pool](HttpRequest &&p, session_id_t sid)->void
 								{
-									logic_thread_pool.AddTask(TaskPtr(new HandleHttpRequestTask(sid, sid, p)));
+									//logic_thread_pool.AddTask(TaskPtr(new HttpCheatTask(sid, sid, p)));
+									logic_thread_pool.AddTask(TaskPtr(new HttpCallbackTask(sid, p)));
 								});
 	std::cout << "main-function, result of Neter::Listen is " << res << std::endl;
 	

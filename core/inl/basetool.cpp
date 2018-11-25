@@ -25,7 +25,7 @@ std::vector<std::string> split_string(const std::string &_src, const std::string
 		{
 			if(pre != now)
 			{
-				result.push_back(src.substr(pre, now));
+				result.push_back(src.substr(pre, now-pre));
 			}
 			now += lsplit;
 			pre = now;

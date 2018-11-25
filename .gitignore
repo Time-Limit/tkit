@@ -8,3 +8,4 @@ test
 core/base/Makefile
 core/certbot
 cupid/blog/
+*.so

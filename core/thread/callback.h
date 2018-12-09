@@ -8,6 +8,8 @@
 #include "threadpool.h"
 #include "protocol.h"
 #include <iostream>
+#include "pcre.h"
+#include "pcrecpp.h"
 
 namespace TCORE
 {
@@ -16,7 +18,7 @@ typedef std::function<const HttpResponse (const HttpRequest &)> HttpCallback;
 
 template<typename Callback>
 class CallbackManager{
-	typedef std::unordered_map<std::string, Callback> CallbackMap;
+	typedef std::unordered_map<std::string, std::pair<Callback, pcrecpp::RE>> CallbackMap;
 	CallbackMap callback_map;
 
 	mutable SpinLock callback_map_lock;
@@ -33,22 +35,22 @@ public:
 		SpinLockGuard guard(callback_map_lock);
 		auto it = callback_map.find(key);
 		if(it == callback_map.end()){
-			callback_map.insert(std::make_pair(key, cb));
+			callback_map.insert(std::make_pair(key, std::make_pair(cb, pcrecpp::RE(key))));
 		}
 		else{
-			it->second = cb;
+			it->second = std::make_pair(cb, pcrecpp::RE(key));
 		}
 	}
 
 	bool Get(const std::string &key, Callback &cb) const {
-		std::cout << key << std::endl;
 		SpinLockGuard guard(callback_map_lock);
-		auto it = callback_map.find(key);
-		if(it == callback_map.end()){
-			return false;
+		for(const auto &p : callback_map){
+			if(p.second.second.FullMatch(key)){
+				cb = p.second.first;
+				return true;
+			}
 		}
-		cb = it->second;
-		return true;
+		return false;
 	}
 };
 

@@ -9,3 +9,5 @@ core/base/Makefile
 core/certbot
 cupid/blog/
 *.so
+./bin/cupid
+./bin/libmodule.so

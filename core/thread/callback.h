@@ -7,6 +7,7 @@
 #include "lock.h"
 #include "threadpool.h"
 #include "protocol.h"
+#include <iostream>
 
 namespace TCORE
 {
@@ -40,6 +41,7 @@ public:
 	}
 
 	bool Get(const std::string &key, Callback &cb) const {
+		std::cout << key << std::endl;
 		SpinLockGuard guard(callback_map_lock);
 		auto it = callback_map.find(key);
 		if(it == callback_map.end()){
